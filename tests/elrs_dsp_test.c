@@ -202,7 +202,7 @@ static unsigned argmax(const uint8_t *o)
 static void tone(int mhz, int amp)
 {
     for (int k = 0; k < 16380; k++) {
-        float ph = 2.0f * (float)M_PI * (float)(mhz * 4) * (float)k / 64.0f;
+        float ph = 2.0f * (float)ELRS_TEST_PI * (float)(mhz * 4) * (float)k / 64.0f;
         iq[k].i = (int16_t)lroundf((float)amp * cosf(ph));
         iq[k].q = (int16_t)lroundf((float)amp * sinf(ph));
     }
