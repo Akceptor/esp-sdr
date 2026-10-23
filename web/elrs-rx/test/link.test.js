@@ -113,3 +113,23 @@ test('pump exit rejects a pending command immediately', async () => {
   await assert.rejects(c, /closed/);
   await p;
 });
+
+test('reply rejected while the write is in flight is not an unhandled rejection', async () => {
+  const unhandled = [];
+  const onUnhandled = (e) => unhandled.push(e);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const sdr = scripted([]);
+    sdr.write = () => new Promise((r) => setTimeout(r, 30));
+    const link = new ElrsLink(sdr);
+    link.running = true;
+    const c = link.command('X', 5000);
+    await new Promise((r) => setTimeout(r, 5));
+    link.pending.reject(new Error('serial port closed'));
+    await assert.rejects(c, /closed/);
+    await new Promise((r) => setTimeout(r, 20));
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+});

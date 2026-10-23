@@ -1,0 +1,4 @@
+.badge { font-weight: 600; font-size: 0.8rem; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--fg); background: var(--panel); }
+.hint { border-color: var(--warn); color: var(--warn); }
+.hint[hidden] { display: none; }
+.status { flex-wrap: wrap; }

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELRS On-chip Receiver</title>
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../elrs/elrs.css">
+<link rel="stylesheet" href="elrs-rx.css">
+</head>
+<body>
+<header class="site"><a href="../">ESP-SDR Tools</a><a href="../elrs/">ELRS viewer</a><a href="./">ELRS receiver</a><a href="../flash/">Flasher</a></header>
+<main>
+  <div id="unsupported" class="banner" hidden>
+    Web Serial is not available in this browser. Use a desktop Chrome, Edge or Opera over HTTPS (or localhost).
+    Firefox and Safari do not support it.
+  </div>
+  <div id="message" class="banner" hidden></div>
+  <div class="bar">
+    <input id="phrase" class="phrase" type="password" placeholder="ELRS binding phrase" autocomplete="off" spellcheck="false" aria-label="Binding phrase">
+    <button id="set">Set</button>
+    <button id="connect" class="primary">Connect</button>
+    <label class="remember"><input id="remember" type="checkbox"> Remember phrase in this browser</label>
+    <label class="remember"><input id="store" type="checkbox"> Store UID on the device</label>
+    <div class="status">
+      <span id="led" class="led"></span><span id="stats">Not connected</span>
+      <span id="badge" class="badge">SCAN</span>
+      <span id="uidset" class="muted" hidden>UID set</span>
+    </div>
+  </div>
+  <div id="hint" class="banner hint" hidden></div>
+  <div class="grid" style="margin-top:16px">
+    <div class="gimbals">
+      <div class="gimbal">
+        <div class="pad stale" id="padL"><div class="dot"></div></div>
+        <div class="cap">Yaw / Throttle</div>
+        <div class="vals" id="valsL">-</div>
+      </div>
+      <div class="gimbal">
+        <div class="pad stale" id="padR"><div class="dot"></div></div>
+        <div class="cap">Roll / Pitch</div>
+        <div class="vals" id="valsR">-</div>
+      </div>
+    </div>
+    <div class="aux">
+      <h2>AUX</h2>
+      <div id="auxrows"></div>
+    </div>
+  </div>
+  <p class="note">
+    Mode 2 layout, CRSF values 172..1811. AUX1 is the arm bit. With Hybrid8 switches each AUX updates only when
+    its slot comes round, so a bar can lag a few packets. Decoding runs on the board; the phrase is hashed in your
+    browser and only the resulting UID is sent to the board.
+  </p>
+  <p class="note">Viewer only. Not flight-safe. The receiver never transmits.</p>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

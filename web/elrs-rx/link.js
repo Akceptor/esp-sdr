@@ -41,6 +41,7 @@ export class ElrsLink {
         timer = setTimeout(() => { if (this.pending === me) me.reject(new Error('timeout')); }, timeoutMs);
         this.pending = me;
       });
+      reply.catch(() => {});
       try {
         await this.sdr.write(text + '\n');
       } catch (e) {
