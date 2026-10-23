@@ -1,6 +1,6 @@
 idf_build_get_property(elrs ESP_SDR_ELRS)
 if(elrs)
-    idf_component_register(SRCS "elrs/cmd.c" "elrs/dsp.c" "elrs/fhss.c" "elrs/ota3.c" "targets/esp32/elrs/app.c"
+    idf_component_register(SRCS "elrs/cmd.c" "elrs/dsp.c" "elrs/fhss.c" "elrs/frames.c" "elrs/ota3.c" "targets/esp32/elrs/app.c"
         "common/burst_serial.c" "common/burst_gpio.c" "common/burst_version.c"
         "common/rx_recalibration.c" "common/rx_calibration_state.c"
         PRIV_INCLUDE_DIRS "elrs" "common" "targets/esp32" "targets/esp32/elrs"

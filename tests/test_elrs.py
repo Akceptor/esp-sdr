@@ -32,6 +32,9 @@ class ElrsHost(unittest.TestCase):
     def test_fhss(self):
         self.run_c('fhss', ['fhss'])
 
+    def test_frames(self):
+        self.run_c('frames', ['frames', 'ota3', 'cmd'])
+
     def test_dsp(self):
         self.run_c('dsp', ['dsp', 'ota3', 'fhss'], [str(ROOT / 'web/elrs/test/real_dk500.bin')])
 
