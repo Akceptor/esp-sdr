@@ -5,7 +5,7 @@
 
 #include "fhss.h"
 
-#define MAX_FRAMES (ELRS_MAX_SAMPLES / ELRS_FRAME_STEP)
+#define MAX_FRAMES ((ELRS_MAX_SAMPLES - ELRS_FFT_N) / ELRS_FRAME_STEP + 1)
 #define MAX_CH 16
 #define CH_BINS 4
 #define CENTROID_MARGIN 1

@@ -34,7 +34,7 @@ typedef struct {
     uint8_t channel;
     uint16_t frame_start, frame_end; /* end exclusive; frame f covers samples [256 f, 256 f + 64) */
     float cfo_hz;
-    float power_db, snr_db; /* arbitrary reference; snr is against the channel's median frame power */
+    float power_db, snr_db; /* arbitrary reference; snr is against the channel's 25th-percentile frame power */
 } elrs_burst_t;
 
 /* bursts = detected before overlap drop, so returned count = bursts - overlap_dropped unless max truncates. */

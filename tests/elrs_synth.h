@@ -18,6 +18,7 @@ typedef struct {
     uint32_t seed;
 } synth_cfg_t;
 
+#define ELRS_TEST_PI 3.14159265358979323846
 #define SYNTH_FS 16e6
 #define SYNTH_BAUD 300e3
 #define SYNTH_BITS (16 + 16 + 112)
@@ -99,7 +100,7 @@ static inline void synth_snapshot(const synth_cfg_t *c, const uint8_t uid[6], co
                 phase += (bits[b] ? -1.0 : 1.0) * c->dev_hz * spb / SYNTH_FS;
             }
             phase += (bits[cur] ? -1.0 : 1.0) * c->dev_hz * (t - cur * spb) / SYNTH_FS;
-            double a = 2.0 * M_PI * (off * t / SYNTH_FS + phase);
+            double a = 2.0 * ELRS_TEST_PI * (off * t / SYNTH_FS + phase);
             re += c->amplitude * cos(a) + mirror * c->amplitude * cos(a);
             im += c->amplitude * sin(a) - mirror * c->amplitude * sin(a);
         }

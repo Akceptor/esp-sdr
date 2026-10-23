@@ -50,8 +50,8 @@ static void test_fft(void)
 {
     int16_t d[2 * ELRS_FFT_N];
     for (int i = 0; i < ELRS_FFT_N; i++) {
-        d[2 * i] = (int16_t)lrint(8000 * cos(2 * M_PI * 5 * i / 64.0));
-        d[2 * i + 1] = (int16_t)lrint(8000 * sin(2 * M_PI * 5 * i / 64.0));
+        d[2 * i] = (int16_t)lrint(8000 * cos(2 * ELRS_TEST_PI * 5 * i / 64.0));
+        d[2 * i + 1] = (int16_t)lrint(8000 * sin(2 * ELRS_TEST_PI * 5 * i / 64.0));
     }
     elrs_fft64(d);
     double tot = 0, bin5 = 0;
