@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test web/elrs/test/*.test.js
+      - run: node --test web/elrs/test/*.test.js web/elrs-rx/test/*.test.js
 
   deploy:
     needs: test
