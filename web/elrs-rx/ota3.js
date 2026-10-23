@@ -9,7 +9,8 @@ function parseP(tok) {
   if (tok.length !== 9) return null;
   const [, t, ch, type, nonce, cfo, snr, fec, data] = tok;
   if (!INT.test(t) || !INT.test(ch) || !/^[RSM]$/.test(type) || !(nonce === '-' || INT.test(nonce))
-      || !INT.test(cfo) || !/^-?\d+(\.\d+)?$/.test(snr) || !INT.test(fec) || !/^[0-9a-f]+$/i.test(data)) return null;
+      || !INT.test(cfo) || !/^-?\d+(\.\d+)?$/.test(snr) || !INT.test(fec)) return null;
+  if (type === 'S' ? !parseSyncData(data) : !/^[0-9a-f]{16}$/i.test(data)) return null;
   return { kind: 'P', tUs: +t, ch: +ch, type, nonce: nonce === '-' ? null : +nonce, cfoKhz: +cfo,
     snrDb: +snr, fec: +fec, data };
 }

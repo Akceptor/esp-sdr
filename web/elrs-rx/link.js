@@ -13,6 +13,7 @@ export class ElrsLink {
     this.handlers = [];
     this.running = false;
     this.pending = null;
+    this.tail = null;
   }
 
   onStream(fn) { this.handlers.push(fn); }
@@ -21,13 +22,32 @@ export class ElrsLink {
     for (const h of this.handlers) h(p);
   }
 
-  async command(text, timeoutMs = 3000) {
+  command(text, timeoutMs = 3000) {
+    const prev = this.tail;
+    const run = prev ? prev.then(() => this.exec(text, timeoutMs)) : this.exec(text, timeoutMs);
+    const mine = run.catch(() => {}).then(() => { if (this.tail === mine) this.tail = null; });
+    this.tail = mine;
+    return run;
+  }
+
+  async exec(text, timeoutMs) {
     if (this.running) {
+      let timer;
       const reply = new Promise((resolve, reject) => {
-        const timer = setTimeout(() => { this.pending = null; reject(new Error('timeout')); }, timeoutMs);
-        this.pending = (t) => { clearTimeout(timer); this.pending = null; resolve(t); };
+        const me = {
+          resolve: (t) => { clearTimeout(timer); this.pending = null; resolve(t); },
+          reject: (e) => { clearTimeout(timer); this.pending = null; reject(e); },
+        };
+        timer = setTimeout(() => { if (this.pending === me) me.reject(new Error('timeout')); }, timeoutMs);
+        this.pending = me;
       });
-      await this.sdr.write(text + '\n');
+      try {
+        await this.sdr.write(text + '\n');
+      } catch (e) {
+        clearTimeout(timer);
+        this.pending = null;
+        throw e;
+      }
       return reply;
     }
     await this.sdr.write(text + '\n');
@@ -54,10 +74,11 @@ export class ElrsLink {
         const p = parseLine(line);
         if (!p) continue;
         if (isStream(p)) this.dispatch(p);
-        else if (this.pending) this.pending(p.text);
+        else if (this.pending) this.pending.resolve(p.text);
       }
     } finally {
       this.running = false;
+      if (this.pending) this.pending.reject(new Error('serial port closed'));
     }
   }
 

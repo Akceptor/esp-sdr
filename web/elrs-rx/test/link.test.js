@@ -63,3 +63,53 @@ test('pump routes replies to a pending command', async () => {
   await p;
   assert.deepEqual(seen, ['W']);
 });
+
+function scripted(q, written = []) {
+  return {
+    written,
+    readLine: async () => { if (!q.length) throw new Error('serial port closed'); return q.shift(); },
+    write: async (t) => { written.push(t); },
+  };
+}
+
+test('concurrent commands are serialized in order', async () => {
+  const written = [];
+  const replies = { 'X\n': 'A', 'Y\n': 'B' };
+  let served = 0;
+  const sdr = {
+    write: async (t) => { written.push(t); },
+    readLine: async () => {
+      while (served >= written.length) {
+        if (written.length >= 2 && served >= 2) throw new Error('serial port closed');
+        await new Promise((r) => setTimeout(r, 1));
+      }
+      return replies[written[served++]];
+    },
+  };
+  const link = new ElrsLink(sdr);
+  const p = link.pump();
+  const [a, b] = await Promise.all([link.command('X'), link.command('Y')]);
+  assert.deepEqual([a, b], ['A', 'B']);
+  assert.deepEqual(written, ['X\n', 'Y\n']);
+  await p;
+});
+
+test('throwing write rejects without leaving a timer or pending waiter', async () => {
+  const sdr = scripted(['W x']);
+  sdr.write = async () => { throw new Error('boom'); };
+  const link = new ElrsLink(sdr);
+  const p = link.pump();
+  await assert.rejects(link.command('X', 50), /boom/);
+  assert.equal(link.pending, null);
+  await p;
+  await new Promise((r) => setTimeout(r, 80));
+});
+
+test('pump exit rejects a pending command immediately', async () => {
+  const link = new ElrsLink(scripted([]));
+  link.running = true;
+  const c = link.command('X', 5000);
+  const p = link.pump();
+  await assert.rejects(c, /closed/);
+  await p;
+});

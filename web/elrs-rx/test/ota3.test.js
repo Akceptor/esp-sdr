@@ -8,7 +8,7 @@ const S_LINE = 'S up=1 mode=SCAN state=ACQ snaps=3 bursts=1 ok=1 rc=1 sync=0 crc
 test('P line parses', () => {
   assert.deepEqual(parseLine('P 123456 36 R - 240 18.3 1 f801020304050695'),
     { kind: 'P', tUs: 123456, ch: 36, type: 'R', nonce: null, cfoKhz: 240, snrDb: 18.3, fec: 1, data: 'f801020304050695' });
-  assert.equal(parseLine('P 1 2 M 77 -5 3.0 0 00').nonce, 77);
+  assert.equal(parseLine('P 1 2 M 77 -5 3.0 0 0011223344556677').nonce, 77);
 });
 
 test('corrupted hex is rejected', () => {
@@ -61,4 +61,11 @@ test('L, W and garbage lines', () => {
   assert.equal(parseLine(''), null);
   assert.equal(parseLine('\x00\x7fgarb'), null);
   assert.equal(parseLine('P 1 2'), null);
+});
+
+test('SYNC P line carries comma data', () => {
+  assert.deepEqual(parseLine('P 1 2 S 5 -3 4.0 0 160,77,14,1,1,5').data, '160,77,14,1,1,5');
+  assert.equal(parseLine('P 1 2 S 5 -3 4.0 0 160,77,14,1,1,-').kind, 'P');
+  assert.equal(parseLine('P 1 2 S 5 -3 4.0 0 zz'), null);
+  assert.equal(parseLine('P 1 2 R 5 -3 4.0 0 160,77,14,1,1,5'), null);
 });
