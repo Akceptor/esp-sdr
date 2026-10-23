@@ -157,6 +157,9 @@ static float db10(float v)
     return 10.0f * log10f(v > 1.0f ? v : 1.0f);
 }
 
+static uint32_t g_bins[MAX_FRAMES][ELRS_FFT_N];
+static size_t g_bins_frames;
+
 static size_t spectrogram(const elrs_iq16_t *x, size_t n, const chan_t *ch, size_t nch,
                           uint32_t pw[MAX_CH][MAX_FRAMES], uint32_t bins[MAX_FRAMES][ELRS_FFT_N])
 {
@@ -212,13 +215,32 @@ static float overlap_frac(const elrs_burst_t *a, const elrs_burst_t *b)
     return hi > lo ? (float)(hi - lo) / (float)shorter : 0.0f;
 }
 
+uint8_t elrs_spectrum_q(uint32_t power)
+{
+    float q = roundf(20.0f * log10f(power > 1u ? (float)power : 1.0f));
+    return q > 255.0f ? 255 : (uint8_t)q;
+}
+
+size_t elrs_spectrum(uint8_t out[ELRS_FFT_N])
+{
+    for (int j = 0; j < ELRS_FFT_N; j++) {
+        uint32_t m = 0;
+        for (size_t f = 0; f < g_bins_frames; f++) {
+            uint32_t p = g_bins[f][(j + ELRS_FFT_N / 2) & (ELRS_FFT_N - 1)];
+            if (p > m) m = p;
+        }
+        out[j] = elrs_spectrum_q(m);
+    }
+    return g_bins_frames;
+}
+
 size_t elrs_detect(const elrs_iq16_t *x, size_t n, unsigned lo_mhz, elrs_burst_t *out, size_t max,
                    elrs_detect_stats_t *st)
 {
     tables_init();
     /* Static: ~17 KB is too much for a task stack, so elrs_detect is not reentrant. */
     static uint32_t pw[MAX_CH][MAX_FRAMES];
-    static uint32_t bins[MAX_FRAMES][ELRS_FFT_N];
+    uint32_t (*const bins)[ELRS_FFT_N] = g_bins;
     chan_t ch[MAX_CH];
     size_t nch = 0;
     for (unsigned c = 0; c < ELRS_NCH && nch < MAX_CH; c++) {
@@ -235,6 +257,7 @@ size_t elrs_detect(const elrs_iq16_t *x, size_t n, unsigned lo_mhz, elrs_burst_t
     }
 
     size_t frames = spectrogram(x, n, ch, nch, pw, bins);
+    g_bins_frames = frames;
     elrs_burst_t cand[2 * ELRS_MAX_BURSTS];
     size_t nc = 0;
     unsigned total = 0;

@@ -16,6 +16,8 @@ typedef struct {
 int elrs_fmt_packet(char *buf, size_t cap, uint32_t t_us, const elrs_packet_t *p, int nonce, const uint8_t uid[6]);
 int elrs_fmt_stats(char *buf, size_t cap, const elrs_stats_t *s);
 int elrs_fmt_lock(char *buf, size_t cap, const char *state, const char *reason);
+/* "F <t_us> <lo_mhz> <128 lowercase hex>\n"; bins DC-centred as elrs_spectrum. -1 if cap is too small. */
+int elrs_fmt_spectrum(char *buf, size_t cap, uint32_t t_us, unsigned lo_mhz, const uint8_t bins[ELRS_FFT_N]);
 int elrs_fmt_warn(char *buf, size_t cap, const char *text);
 
 #endif

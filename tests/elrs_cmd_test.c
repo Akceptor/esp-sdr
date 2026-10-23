@@ -76,6 +76,11 @@ int main(void) {
     INVALID("POLARITY X", "args");
     P("SYNC 18446744073709551615"); assert(c.kind == ELRS_CMD_SYNC && c.u.nonce == UINT64_MAX);
     P("SYNC 7");               assert(c.kind == ELRS_CMD_SYNC && c.u.nonce == 7);
+    P("SPECTRUM ON");   assert(c.kind == ELRS_CMD_SPECTRUM && c.u.on);
+    P("SPECTRUM OFF");  assert(c.kind == ELRS_CMD_SPECTRUM && !c.u.on);
+    INVALID("SPECTRUM", "args");
+    INVALID("SPECTRUM X", "args");
+    INVALID("SPECTRUM ON 1", "args");
     INVALID("SYNC", "args");
     INVALID("SYNC 7 8", "args");
     INVALID("SYNC abc", "args");

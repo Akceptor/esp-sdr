@@ -10,7 +10,7 @@ typedef enum {
     ELRS_CMD_MODE, ELRS_CMD_MODE_QUERY, ELRS_CMD_PARK, ELRS_CMD_PARK_QUERY,
     ELRS_CMD_GAIN_HARDWARE, ELRS_CMD_GAIN_MANUAL, ELRS_CMD_GAIN_QUERY,
     ELRS_CMD_RX_ON, ELRS_CMD_RX_OFF, ELRS_CMD_STATS, ELRS_CMD_BENCH, ELRS_CMD_RETUNE,
-    ELRS_CMD_LEAD, ELRS_CMD_SNAP16, ELRS_CMD_POLARITY
+    ELRS_CMD_LEAD, ELRS_CMD_SNAP16, ELRS_CMD_POLARITY, ELRS_CMD_SPECTRUM
 } elrs_cmd_kind_t;
 
 typedef struct {
@@ -20,6 +20,7 @@ typedef struct {
         uint8_t uid[6];
         elrs_mode_t mode;
         elrs_polarity_t polarity;
+        bool on;
         uint64_t nonce;
         unsigned park_mhz, gain, bench_n, lead_us, snap_samples;
         struct { unsigned mhz_a, mhz_b, n; bool fast; } retune;

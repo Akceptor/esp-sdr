@@ -89,7 +89,7 @@ void elrs_cmd_parse(const char *line, elrs_cmd_t *out) {
     if (overflow) {
         fail(out, is(v, "UID") || is(v, "SYNC") || is(v, "PARK") || is(v, "MODE") ||
                           is(v, "GAIN") || is(v, "RX") || is(v, "BENCH") || is(v, "RETUNE") ||
-                          is(v, "LEAD") || is(v, "SNAP16") || is(v, "POLARITY")
+                          is(v, "LEAD") || is(v, "SNAP16") || is(v, "POLARITY") || is(v, "SPECTRUM")
                       ? "args" : "command");
         return;
     }
@@ -173,6 +173,12 @@ void elrs_cmd_parse(const char *line, elrs_cmd_t *out) {
         else if (argc == 1 && is(t[1], "AUTO")) out->u.polarity = ELRS_POL_AUTO;
         else { fail(out, "args"); return; }
         { done(out, ELRS_CMD_POLARITY); return; }
+    }
+    if (is(v, "SPECTRUM")) {
+        if (argc == 1 && is(t[1], "ON")) out->u.on = true;
+        else if (argc == 1 && is(t[1], "OFF")) out->u.on = false;
+        else { fail(out, "args"); return; }
+        { done(out, ELRS_CMD_SPECTRUM); return; }
     }
     fail(out, "command");
 }

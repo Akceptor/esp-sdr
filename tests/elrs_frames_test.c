@@ -72,8 +72,22 @@ static void small_cap(void)
     assert(elrs_fmt_lock(b, 0, "a", "b") == -1);
 }
 
+static void spectrum_line(void)
+{
+    uint8_t bins[64];
+    for (int j = 0; j < 64; j++) bins[j] = (uint8_t)(j * 4);
+    char f[160];
+    assert(elrs_fmt_spectrum(f, sizeof f, 5000, 2438, bins) == 141);
+    assert(!strcmp(f, "F 5000 2438 "
+        "0004080c1014181c2024282c3034383c4044484c5054585c6064686c7074787c"
+        "8084888c9094989ca0a4a8acb0b4b8bcc0c4c8ccd0d4d8dce0e4e8ecf0f4f8fc\n"));
+    assert(elrs_fmt_spectrum(f, 141, 5000, 2438, bins) == -1 && memchr(f, 0, 141));
+    assert(elrs_fmt_spectrum(f, 142, 5000, 2438, bins) == 141);
+}
+
 int main(void)
 {
+    spectrum_line();
     rc_line();
     sync_line();
     stats_line();

@@ -49,6 +49,14 @@ typedef struct {
 size_t elrs_detect(const elrs_iq16_t *x, size_t n, unsigned lo_mhz, elrs_burst_t *out, size_t max,
                    elrs_detect_stats_t *st);
 
+/* clamp(round(20 * log10(max(power, 1))), 0, 255): 0.5 dB steps. */
+uint8_t elrs_spectrum_q(uint32_t power);
+/* Peak-hold spectrum of the most recent elrs_detect call (elrs_decode_snapshot calls it), DC-centred:
+ * out[j] = elrs_spectrum_q(max over frames of bin (j + 32) % 64), centre LO + (j - 32) * 250 kHz.
+ * Returns the frame count used; 0 with out zeroed before any detect or when it saw < 64 samples.
+ * Not reentrant; call before the next elrs_detect. */
+size_t elrs_spectrum(uint8_t out[ELRS_FFT_N]);
+
 typedef struct {
     unsigned lo_mhz;
     uint8_t uid[6];

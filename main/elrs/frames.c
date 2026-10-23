@@ -70,3 +70,12 @@ int elrs_fmt_warn(char *buf, size_t cap, const char *text)
     if (!cap) return -1;
     return finish(buf, cap, snprintf(buf, cap, "W %s\n", text));
 }
+
+int elrs_fmt_spectrum(char *buf, size_t cap, uint32_t t_us, unsigned lo_mhz, const uint8_t bins[ELRS_FFT_N])
+{
+    if (!cap) return -1;
+    int n = snprintf(buf, cap, "F %lu %u ", (unsigned long)t_us, lo_mhz);
+    for (int j = 0; j < ELRS_FFT_N; j++) n = append(buf, cap, n, "%02x", (unsigned)bins[j]);
+    n = append(buf, cap, n, "\n");
+    return finish(buf, cap, n);
+}

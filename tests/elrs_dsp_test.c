@@ -192,8 +192,71 @@ static void test_detect_fixture(const char *bin)
     }
 }
 
+static unsigned argmax(const uint8_t *o)
+{
+    unsigned a = 0;
+    for (unsigned j = 1; j < 64; j++) if (o[j] > o[a]) a = j;
+    return a;
+}
+
+static void tone(int mhz, int amp)
+{
+    for (int k = 0; k < 16380; k++) {
+        float ph = 2.0f * (float)M_PI * (float)(mhz * 4) * (float)k / 64.0f;
+        iq[k].i = (int16_t)lroundf((float)amp * cosf(ph));
+        iq[k].q = (int16_t)lroundf((float)amp * sinf(ph));
+    }
+    elrs_burst_t b[ELRS_MAX_BURSTS];
+    elrs_detect(iq, 16380, 2438, b, ELRS_MAX_BURSTS, NULL);
+}
+
+static void test_spectrum(void)
+{
+    uint8_t out[64];
+    int want[2] = {40, 20}, mhz[2] = {2, -3};
+    for (int t = 0; t < 2; t++) {
+        tone(mhz[t], 400);
+        assert(elrs_spectrum(out) == 64);
+        assert(argmax(out) == (unsigned)want[t]);
+        for (int j = 0; j < 64; j++)
+            if (abs(j - want[t]) >= 3) assert(out[want[t]] >= out[j] + 40);
+    }
+    for (int k = 0; k < 16380; k++) { iq[k].i = 300; iq[k].q = 0; }
+    elrs_burst_t b[ELRS_MAX_BURSTS];
+    elrs_detect(iq, 16380, 2438, b, ELRS_MAX_BURSTS, NULL);
+    assert(elrs_spectrum(out) == 64 && argmax(out) == 32);
+    memset(iq, 0, sizeof iq);
+    elrs_detect(iq, 16380, 2438, b, ELRS_MAX_BURSTS, NULL);
+    memset(out, 0xAA, 64);
+    assert(elrs_spectrum(out) == 64);
+    for (int j = 0; j < 64; j++) assert(out[j] == 0);
+    tone(2, 400);
+    elrs_detect(iq, 32, 2438, b, ELRS_MAX_BURSTS, NULL);
+    memset(out, 0xAA, 64);
+    assert(elrs_spectrum(out) == 0);
+    for (int j = 0; j < 64; j++) assert(out[j] == 0);
+}
+
+static void test_spectrum_q(void)
+{
+    assert(elrs_spectrum_q(0) == 0 && elrs_spectrum_q(1) == 0 && elrs_spectrum_q(3) == 10);
+    assert(elrs_spectrum_q(10) == 20 && elrs_spectrum_q(100) == 40 && elrs_spectrum_q(1000) == 60);
+    assert(elrs_spectrum_q(1u << 27) == 163 && elrs_spectrum_q(UINT32_MAX) == 193);
+}
+
+static void test_spectrum_before_detect(void)
+{
+    uint8_t out[64];
+    memset(out, 0xAA, 64);
+    assert(elrs_spectrum(out) == 0);
+    for (int j = 0; j < 64; j++) assert(out[j] == 0);
+}
+
 int main(int argc, char **argv)
 {
+    test_spectrum_before_detect();
+    test_spectrum_q();
+    test_spectrum();
     test_convert();
     test_fft();
     test_detect_synth();
