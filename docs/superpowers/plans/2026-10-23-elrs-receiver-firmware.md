@@ -887,6 +887,329 @@ git add web/elrs/app.js web/index.html web/README.md
 git commit -m "web: redirect between raw-IQ viewer and ELRS receiver by INFO"
 ```
 
+## Task 13b — SDR waterfall on both pages (amendment, inserted after Task 13)
+
+User request (2026-10-23): both pages show an SDR waterfall next to the AUX bars. `web/elrs/` (stock firmware, raw I/Q) computes the spectrum in the browser; `web/elrs-rx/` gets a new streamed `F` line from the detector's existing 64-bin spectrogram, switched by `SPECTRUM ON|OFF`. One shared renderer.
+
+Decisions (resolved while planning):
+
+- **Spectrum = peak hold.** Per bin, the maximum `|X|²` over all frames of a snapshot (and, on the firmware, over all snapshots of a 100 ms window). ELRS bursts fill part of a 1 ms snapshot; a mean would wash them out.
+- **Quantisation** (identical in C and JS): `q(p) = clamp(round(20·log10(max(p, 1))), 0, 255)`, i.e. 0.5 dB per step, 0 = power ≤ 1. Firmware bin power stays below 2^27, so `q` ≤ 163 in practice.
+- **Bin order is DC-centred:** `out[j]` = FFT bin `(j + 32) mod 64`, centre frequency `LO + (j − 32) · 250 kHz`. So `out[0]` = LO − 8 MHz, `out[32]` = LO, `out[63]` = LO + 7.75 MHz.
+- **`F` line:** `F <t_us> <lo_mhz> <128 lowercase hex>\n`. The 128 hex characters are `out[0..63]`, two per bin. The line is 141 bytes for a 4-digit `t_us`. `t_us` = `(uint32_t)cap.t_trig_us` of the first snapshot in the window. `lo_mhz` is in the line so the page needs no `PARK?`, and later TIMED/HOP modes stay unambiguous.
+- **Rate limit:** the radio loop max-merges each snapshot's `elrs_spectrum` into a 64-byte accumulator. When `esp_timer_get_time() − last_f_us ≥ 100000` and the accumulator holds ≥ 1 snapshot, it emits one `F` line via `out_stream`, sets `last_f_us = now` and clears the accumulator. That gives ≤ 10 lines/s (about 8–10 at 86 snapshots/s), roughly 1.4 kB/s, under 1% of the UART. If the LO changes while it accumulates, the accumulator restarts at the new LO (no mixed-LO rows). `SPECTRUM OFF`, `RX ON` and `RX OFF` also clear it. A dropped `F` line counts in `drop` like any streamed line.
+- **`SPECTRUM ON|OFF`:** RAM only, default `OFF` at boot, allowed in any RX state, reply `OK`. The flag survives `RX OFF`/`UID CLEAR`. The page sends `SPECTRUM ON` on every connect, and the flag does nothing while RX is off. `CAPS` gains `SPECTRUM`.
+- **Shared module lives in `web/elrs/waterfall.js`.** `web/elrs-rx/` already imports `../elrs/dk500.js` and `../elrs/serial.js`, so elrs-rx → elrs is the established direction, and the "`web/elrs/` must not import `web/elrs-rx/`" rule holds. A new `web/common/` would need both pages' import paths plus the CI test glob changed, for no gain. Its tests go in `web/elrs/test/waterfall.test.js`, which the existing glob already picks up. The module touches no DOM at import time, because `web/elrs/worker.js` imports it.
+- **Display auto-levels.** The two pages have different absolute scales (int8 float DFT vs int16 Q15 FFT with 1/64 scaling). The colour range is `[floor, floor + 60]` q-units (30 dB), where `floor` is an EMA (α 0.1) of each row's 25th percentile. There's one fixed palette, with no pickers or zoom.
+- **Span:** one capture covers ±8 MHz around the LO. That is about 16 channels at 1 MHz spacing, with about 14 decodable inside `ELRS_INBAND_KHZ`, at `PARK 2438` (elrs-rx) or `FREQ 2436` (elrs). The axis is labelled in MHz, with ticks at LO−8, LO−4, LO, LO+4. Packet marks are a magenta pixel at the decoded channel's column on the newest row.
+
+Plan edits to make alongside: add these rows to File Structure — `web/elrs/waterfall.js` (shared spectrum and waterfall, 13b), `main/elrs/dsp.c/.h` (+ 13b), `main/elrs/cmd.c/.h` (+ 13b), `main/elrs/frames.c/.h` (+ 13b). In Global Constraints, change "streamed lines start with token `P`, `S`, `L` or `W`" to "`P`, `S`, `L`, `W` or `F`".
+
+### Task 13b-1: Firmware spectrum export, `F` line, `SPECTRUM` command
+
+**Files:**
+- Modify: `main/elrs/dsp.h`, `main/elrs/dsp.c`, `main/elrs/cmd.h`, `main/elrs/cmd.c`, `main/elrs/frames.h`, `main/elrs/frames.c`
+- Modify: `main/targets/esp32/elrs/app.c`
+- Modify: `tests/elrs_dsp_test.c`, `tests/elrs_cmd_test.c`, `tests/elrs_frames_test.c`
+- Modify: `docs/elrs-receiver.md`, `docs/superpowers/specs/2026-10-23-elrs-receiver-firmware-design.md` (append the Spec amendment below)
+
+**Interfaces:**
+- Consumes: `elrs_detect` / `elrs_decode_snapshot` (Tasks 5–6; signatures unchanged), `out_stream` (Task 10).
+- Produces (`dsp.h`):
+
+```c
+/* clamp(round(20 * log10(max(power, 1))), 0, 255): 0.5 dB steps. */
+uint8_t elrs_spectrum_q(uint32_t power);
+/* Peak-hold spectrum of the most recent elrs_detect call (elrs_decode_snapshot calls it), DC-centred:
+ * out[j] = elrs_spectrum_q(max over frames of bin (j + 32) % 64), centre LO + (j - 32) * 250 kHz.
+ * Returns the frame count used; 0 with out zeroed before any detect or when it saw < 64 samples.
+ * Not reentrant; call before the next elrs_detect. */
+size_t elrs_spectrum(uint8_t out[ELRS_FFT_N]);
+```
+
+- Produces (`cmd.h`): `ELRS_CMD_SPECTRUM` appended to `elrs_cmd_kind_t`; `bool on;` added to the union.
+- Produces (`frames.h`):
+
+```c
+/* "F <t_us> <lo_mhz> <128 lowercase hex>\n"; bins DC-centred as elrs_spectrum. -1 if cap is too small. */
+int elrs_fmt_spectrum(char *buf, size_t cap, uint32_t t_us, unsigned lo_mhz, const uint8_t bins[ELRS_FFT_N]);
+```
+
+Implementation notes:
+- Move `bins` out of `elrs_detect` to a file-scope `static uint32_t g_bins[MAX_FRAMES][ELRS_FFT_N]`, and record the frame count in a `static size_t g_bins_frames` after `spectrogram()`. The detector's behaviour and output stay byte-identical. Use `float` and `log10f` (never `double`) and no heap.
+- `cmd.c`: `SPECTRUM ON` / `SPECTRUM OFF` (argc 1); anything else → `ERR args`. Add `"SPECTRUM"` to the overflow `args` list.
+- `app.c`: `static volatile bool spectrum_on`. In `radio_task`, after `elrs_decode_snapshot` and only when `spectrum_on`: call `elrs_spectrum(tmp)`, max-merge it into `acc[64]` (restart if `cfg.lo_mhz != acc_lo`), and apply the rate rule above. `case ELRS_CMD_SPECTRUM`: set the flag, request an accumulator clear, `reply("OK\n")`. `CAPS` → `CAPS VERSION ELRSRX DK500 OTA3 UIDNVS BENCH SNAP16 SPECTRUM`. `BENCH` does not touch the accumulator.
+
+- [ ] **Step 1: Write the failing tests**
+
+`tests/elrs_dsp_test.c`, new cases (the existing ones stay unchanged as the regression guard):
+- `spectrum_q`: `elrs_spectrum_q(0) == 0`, `(1) == 0`, `(3) == 10`, `(10) == 20`, `(100) == 40`, `(1000) == 60`, `(1u << 27) == 163`, `(UINT32_MAX) == 193`.
+- `spectrum_before_detect`: run this case first in `main`. `memset(out, 0xAA, 64)`; `elrs_spectrum(out) == 0` and all 64 bytes are 0.
+- `spectrum_tone_pos`: 16380 samples `x[k].i = lroundf(400 cosf(2π·8k/64))`, `.q = lroundf(400 sinf(...))` (+2 MHz) → `elrs_detect(x, 16380, 2438, …)`; `elrs_spectrum(out) == 64`; argmax(out) == 40; `out[40] >= out[j] + 40` for every `|j − 40| >= 3`.
+- `spectrum_tone_neg`: the same at −3 MHz (bin −12) → argmax == 20.
+- `spectrum_dc`: `i = 300, q = 0` constant → argmax == 32.
+- `spectrum_zero`: all-zero input → returns 64, all 64 bytes are 0.
+- `spectrum_short`: `elrs_detect` with n = 32 → `elrs_spectrum` returns 0 and out is zeroed.
+
+`tests/elrs_cmd_test.c`:
+
+```c
+P("SPECTRUM ON");   assert(c.kind == ELRS_CMD_SPECTRUM && c.u.on);
+P("SPECTRUM OFF");  assert(c.kind == ELRS_CMD_SPECTRUM && !c.u.on);
+INVALID("SPECTRUM", "args");
+INVALID("SPECTRUM X", "args");
+INVALID("SPECTRUM ON 1", "args");
+```
+
+`tests/elrs_frames_test.c`:
+
+```c
+uint8_t bins[64];
+for (int j = 0; j < 64; j++) bins[j] = (uint8_t)(j * 4);
+char f[160];
+assert(elrs_fmt_spectrum(f, sizeof f, 5000, 2438, bins) == 141);
+assert(!strcmp(f, "F 5000 2438 "
+    "0004080c1014181c2024282c3034383c4044484c5054585c6064686c7074787c"
+    "8084888c9094989ca0a4a8acb0b4b8bcc0c4c8ccd0d4d8dce0e4e8ecf0f4f8fc\n"));
+assert(elrs_fmt_spectrum(f, 141, 5000, 2438, bins) == -1 && memchr(f, 0, 141));
+assert(elrs_fmt_spectrum(f, 142, 5000, 2438, bins) == 141);
+```
+
+- [ ] **Step 2: Run to verify failure**
+
+Run: `python3 -m unittest tests.test_elrs -v`
+Expected: `test_dsp`, `test_cmd` and `test_frames` FAIL (undeclared `elrs_spectrum`, `ELRS_CMD_SPECTRUM`, `elrs_fmt_spectrum`).
+
+- [ ] **Step 3: Implement dsp, cmd and frames**
+
+- [ ] **Step 4: Run to verify pass**
+
+Run: `python3 -m unittest tests.test_elrs -v`
+Expected: all PASS, including the unchanged `test_dsp` detector cases, `test_decode` and `test_caps` (detector output unchanged).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add main/elrs/dsp.c main/elrs/dsp.h main/elrs/cmd.c main/elrs/cmd.h main/elrs/frames.c main/elrs/frames.h tests/elrs_dsp_test.c tests/elrs_cmd_test.c tests/elrs_frames_test.c
+git commit -m "elrs: peak-hold spectrum export, F line formatter, SPECTRUM command parse"
+```
+
+- [ ] **Step 6: Wire `app.c`, then build both profiles**
+
+Run: the Global Constraints build command for `esp32-elrs`, then for `esp32`, each into a fresh `$SCRATCH/art-<n>`.
+Expected: both build; `git diff --stat fe83eda -- main/common main/targets/esp32/receiver.c` is empty.
+
+- [ ] **Step 7: Docs and spec amendment**
+
+`docs/elrs-receiver.md`:
+- `CAPS` row → `… SNAP16 SPECTRUM`.
+- New row: `SPECTRUM ON|OFF` → `OK`; RAM only, default `OFF`, allowed in any RX state.
+- The intro sentence lists `P`, `S`, `L`, `W` or `F`.
+- New Streamed-lines bullet with the exact `F` format, bin order, quantisation, rate rule and LO-change rule from the Decisions above.
+
+Append the "Spec amendment" paragraph (end of this file) to the spec under §14 Decision record.
+
+- [ ] **Step 8: [HIL] Protocol check (no TX needed)**
+
+Use a host script at 2 Mbaud, with the test UID `00000000133e`:
+1. `CAPS` ends with `SPECTRUM`.
+2. `SPECTRUM X` → `ERR args`.
+3. `UID 00000000133e`, `RX ON`: for 3 s there are no `F` lines.
+4. `SPECTRUM ON` → `OK`, then over 10 s: 80–100 `F` lines. Each matches `^F \d+ 2438 [0-9a-f]{128}$` and successive `t_us` differ by ≥ 100000. `S` lines still arrive at 1/s with `drop=0`.
+5. `PARK 2450`: within 200 ms, `F` lines carry `2450`, and no line carries 2438 after the first 2450.
+6. `SPECTRUM OFF` → `OK`, then no `F` line after that `OK`.
+7. `RX OFF`.
+
+Expected: all as stated. Record the `dec_us` before and after `SPECTRUM ON` in the commit message (it should be within +5%).
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add main/targets/esp32/elrs/app.c docs/elrs-receiver.md docs/superpowers/specs/2026-10-23-elrs-receiver-firmware-design.md
+git commit -m "esp32-elrs: stream rate-limited F spectrum lines under SPECTRUM ON"
+```
+
+### Task 13b-2: Shared waterfall module and `web/elrs-rx/` integration
+
+**Files:**
+- Create: `web/elrs/waterfall.js`, `web/elrs/test/waterfall.test.js`
+- Modify: `web/elrs-rx/ota3.js`, `web/elrs-rx/test/ota3.test.js`, `web/elrs-rx/test/link.test.js`
+- Modify: `web/elrs-rx/index.html`, `web/elrs-rx/app.js`, `web/elrs/elrs.css`
+
+**Interfaces:**
+- Consumes: the `F` line and `SPECTRUM ON` (13b-1); `ElrsLink.onStream` (Task 11; `F` routes there unchanged because `kind !== 'reply'`).
+- Produces (`web/elrs/waterfall.js`, no DOM access at import time):
+
+```js
+export const WF_BINS = 64;                 // DC-centred; column j = LO + (j - 32) * 250 kHz
+export function specQ(p)                   // clamp(round(20*log10(max(p,1))), 0, 255), same as elrs_spectrum_q
+export function spectrumFromIq8(iq)        // Int8Array interleaved I,Q -> Uint8Array(64): frames every 256 samples,
+                                           // 64-pt periodic Hann (0.5 - 0.5 cos(2πi/64)) float DFT, |X|² peak hold, specQ, DC-centred
+export function binColumn(freqKhz, loMhz)  // Math.round((freqKhz - loMhz*1000) / 250) + 32, or null outside 0..63
+export function axisTicks(loMhz)           // [{frac:(col+0.5)/64, text:String(lo+d)} for d of -8,-4,0,4]
+export const WF_PALETTE                    // Uint8ClampedArray(256*3), linear stops 0:(0,0,0) .35:(0,0,170) .6:(0,200,200) .8:(255,220,0) 1:(255,255,255)
+export const WF_MARK = [255, 0, 255];
+export class LevelScale {                  // floor: first update = 25th pct (sorted[16]); then floor += 0.1*(pct - floor)
+  update(bins) ; get floor() ; index(q) }  // index = clamp(round((q - floor) * 255 / 60), 0, 255)
+export class WaterfallModel {
+  constructor(rows = 120)
+  push(bins, loMhz)                        // newest row first; LO change clears history first; > rows drops oldest; LevelScale.update
+  mark(freqKhz)                            // marks binColumn(freqKhz, lo) on the newest row; ignored if null or no rows
+  get loMhz()                              // null before the first push
+  get dirty()                              // true after push/mark, false after pixels()
+  pixels()                                 // Uint8ClampedArray(64*rows*4) RGBA, row 0 = newest, colour = WF_PALETTE[index(q)] using the
+}                                          // scale at push time, marked pixels WF_MARK, rows not yet filled (0,0,0,255)
+export function drawWaterfall(canvas, model, axisEl)  // if model.dirty: putImageData(pixels); rebuild axis labels when LO changed
+```
+
+- Produces (`ota3.js`): `parseLine` case `'F'` → `{kind:'F', tUs, loMhz, bins: Uint8Array(64)}`, or `null` unless there are exactly 4 tokens, `t_us` is an integer, `lo_mhz` is an integer in 2402..2478, and the data matches `/^[0-9a-f]{128}$/i`.
+
+- [ ] **Step 1: Write the failing tests**
+
+`web/elrs/test/waterfall.test.js`:
+- `specQ`: 0→0, 1→0, 3→10, 10→20, 100→40, 1000→60, 2**27→163, 2**32−1→193.
+- `spectrumFromIq8`:
+  - A 16380-sample tone with amplitude 100 at +2 MHz (`iq[2k] = Math.round(100*cos(2π·8k/64))`, `iq[2k+1] = …sin…`): argmax 40, and `out[40] >= out[j] + 40` for `|j−40| >= 3`.
+  - −3 MHz → argmax 20.
+  - Constant I=50, Q=0 → argmax 32.
+  - All-zero → all 0.
+  - 32 samples → all 0.
+- `binColumn`: `(2436400, 2438)` → 26; `(2438000, 2438)` → 32; `(2430000, 2438)` → 0; `(2445750, 2438)` → 63; `(2446000, 2438)` → null; `(2429800, 2438)` → null.
+- `axisTicks(2438)` texts `['2430','2434','2438','2442']`, fracs `[0.5/64, 16.5/64, 32.5/64, 48.5/64]`.
+- `WF_PALETTE`: entry 0 = 0,0,0; entry 255 = 255,255,255; luminance (0.299r+0.587g+0.114b) non-decreasing.
+- `LevelScale`: update(all 40) → floor 40, `index(40)`=0, `index(70)`=128, `index(100)`=255, `index(10)`=0; then update(all 50) → floor 41.
+- `WaterfallModel(3)`:
+  - Push A (all 40), then B (all 100) at LO 2438: row 0 pixels = palette[255], row 1 = palette[0], and row 2 = (0,0,0,255).
+  - `mark(2436400)` → pixel (col 26, row 0) = 255,0,255.
+  - Push 2 more → 3 rows kept, and the oldest is gone.
+  - Push at LO 2450 → only 1 row filled, `loMhz` 2450.
+  - `mark` before any push does not throw.
+  - `dirty` false after `pixels()`.
+
+`web/elrs-rx/test/ota3.test.js`:
+- The exact 13b-1 line `'F 5000 2438 0004080c…f8fc'` → `{kind:'F', tUs:5000, loMhz:2438}` with `bins[j] === j*4` for all j.
+- These are rejected (each → null):
+  - 126 hex chars.
+  - `'F 5000 2438'`.
+  - `'F x 2438 <128 hex>'`.
+  - `'F 5000 2401 <128 hex>'`.
+  - `'F 5000 2438 <127 hex>g'`.
+
+`web/elrs-rx/test/link.test.js`: feed `['F 5000 2438 <128 hex>', 'P …', 'OK']` → `command(...)` resolves `'OK'`, and `onStream` saw F then P.
+
+- [ ] **Step 2: Run to verify failure**
+
+Run: `node --test web/elrs/test/*.test.js web/elrs-rx/test/*.test.js`
+Expected: FAIL (`waterfall.js` missing; `F` parses as `reply`).
+
+- [ ] **Step 3: Implement `waterfall.js` and the `F` parser**
+
+- [ ] **Step 4: Run to verify pass**
+
+Run: `node --test web/elrs/test/*.test.js web/elrs-rx/test/*.test.js`
+Expected: all PASS, existing tests unaffected.
+
+- [ ] **Step 5: Page integration (`web/elrs-rx/`)**
+
+- `elrs.css`: add a modifier so `web/elrs/` keeps its layout until 13b-3:
+  - `.grid.wf3 { grid-template-columns: minmax(0,2fr) minmax(0,1fr) minmax(0,1fr); }`
+  - `@media (max-width: 960px) { .grid.wf3 { grid-template-columns: 1fr 1fr; } .grid.wf3 .gimbals { grid-column: 1 / -1; } }`
+  - The existing ≤640 px rule still gives one column.
+  - `.wf` styled like `.aux`.
+  - `.wf canvas { display:block; width:100%; height:240px; image-rendering:pixelated; background:#000; }`
+  - `.wfaxis { position:relative; height:1.2em; font-size:.75rem; color:var(--muted); }` with absolutely positioned tick labels (`left: frac*100%`, `translateX(-50%)`).
+- `index.html`:
+  - The grid gets class `wf3`.
+  - After the `.aux` div, add `<div class="wf"><h2>Spectrum</h2><canvas id="wf" width="64" height="120"></canvas><div id="wfaxis" class="wfaxis"></div><p id="wfnote" class="muted">MHz · ±8 MHz around the receiver LO; only channels in this span are visible. Magenta = decoded packet.</p></div>`.
+- `app.js`:
+  - `const wf = new WaterfallModel(120)`.
+  - In the `onStream` handler: `F` → `wf.push(l.bins, l.loMhz)` (not forwarded to `state.onLine`); `P` → `state.onLine(l)` and `wf.mark(2400400 + 1000 * l.ch)`; others → `state.onLine(l)` as before.
+  - In `startRx()`, before `RX ON`: `const r = await link.command('SPECTRUM ON')`. If it starts with `ERR`, set `#wfnote` to "Waterfall needs newer ELRS receiver firmware" and carry on (not a connect failure).
+  - `render()` calls `drawWaterfall(el.wf, wf, el.wfaxis)`.
+  - On connect, reset `wf` (new model).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add web/elrs/waterfall.js web/elrs/test/waterfall.test.js web/elrs/elrs.css web/elrs-rx/ota3.js web/elrs-rx/test/ota3.test.js web/elrs-rx/test/link.test.js web/elrs-rx/index.html web/elrs-rx/app.js
+git commit -m "web: shared spectrum waterfall; elrs-rx shows F lines next to AUX"
+```
+
+### Task 13b-3: `web/elrs/` waterfall, README, Chrome check
+
+**Files:**
+- Modify: `web/elrs/worker.js`, `web/elrs/app.js`, `web/elrs/index.html`, `web/README.md`
+
+**Interfaces:**
+- Consumes: `spectrumFromIq8`, `WaterfallModel`, `drawWaterfall` (13b-2). `web/elrs/` imports only from `web/elrs/` (`./waterfall.js`).
+- Produces: worker result message gains `spectrum: Uint8Array(64)` (transferable copy); no other message changes.
+
+- [ ] **Step 1: Worker**
+
+In `worker.js`, compute `const spectrum = spectrumFromIq8(new Int8Array(m.iq))` before `decodeSnapshot`, and include it in the `result` message. On a decode error, still post `{type:'error', …, spectrum}` so the row is kept.
+
+- [ ] **Step 2: Page**
+
+- `index.html`: the same `wf3` grid and `.wf` panel as 13b-2, with the note "MHz · ±8 MHz around 2436 MHz; only channels in this span are visible. Magenta = decoded packet."
+- `app.js`:
+  - `const wf = new WaterfallModel(120)`, reset on connect.
+  - In `worker.onmessage`, if `m.spectrum`, call `wf.push(m.spectrum, FREQ_MHZ)`; then for each packet `wf.mark(Math.round(p.channelMhz * 1000))`.
+  - `render()` calls `drawWaterfall(el.wf, wf, el.wfaxis)`.
+- The rows equal the processed snapshots (about 3 per second here, so 120 rows cover about 40 s).
+
+- [ ] **Step 3: README**
+
+`web/README.md`: one sentence per page that the right-hand panel is a ±8 MHz peak-hold waterfall around the LO (browser FFT on `elrs/`, firmware `F` lines on `elrs-rx/`).
+
+- [ ] **Step 4: Run web tests**
+
+Run: `node --test web/elrs/test/*.test.js web/elrs-rx/test/*.test.js`
+Expected: PASS. Then run `grep -n "elrs-rx" web/elrs/*.js`; expected: the only hits are the existing redirect message string in `app.js`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add web/elrs/worker.js web/elrs/app.js web/elrs/index.html web/README.md
+git commit -m "elrs page: browser-FFT waterfall next to AUX"
+```
+
+- [ ] **Step 6: [HIL] [USER] Chrome checks**
+
+Serve `web/` with `python3 -m http.server 8000`. TX on DK500 at about 1 m. The user types the phrase.
+
+A. On `esp32-elrs`, open `http://localhost:8000/elrs-rx/`:
+1. The waterfall panel is to the right of AUX.
+2. It scrolls about 10 rows/s.
+3. The axis reads 2430 · 2434 · 2438 · 2442 MHz.
+4. ELRS bursts show as short bright dashes at varying columns.
+5. Magenta marks line up with bright dashes.
+6. Gimbals and updates/s are unchanged (≥ 5).
+7. A narrow window (≤ 960 px) shows two columns with the waterfall under AUX, and a phone width shows one column with no horizontal scroll.
+8. Reload mid-stream and reconnect: the waterfall restarts.
+
+B. Flash stock and open `/elrs/`:
+1. The waterfall scrolls about 3 rows/s, and the axis is centred on 2436.
+2. Bursts and magenta marks are visible.
+3. Decoding works as before.
+
+Re-flash `esp32-elrs` afterwards.
+
+Expected: all items pass. Report a screenshot of each page to the orchestrator.
+
+---
+
+### Spec amendment (append to `docs/superpowers/specs/2026-10-23-elrs-receiver-firmware-design.md`, §14 Decision record)
+
+**2026-10-23 — SDR waterfall (Task 13b, user request).**
+
+§8 gains the command `SPECTRUM ON|OFF`: `OK`, RAM only, default `OFF`, allowed in any RX state. `CAPS` gains `SPECTRUM`.
+
+There is a fifth streamed line, `F <t_us> <lo_mhz> <128 hex>`. It carries the detector's 64-bin peak-hold spectrum, DC-centred: hex byte j = bin centred at LO + (j − 32) · 250 kHz, value `clamp(round(20·log10(max(|X|², 1))), 0, 255)` in 0.5 dB steps. Each line is the max over all frames of all snapshots in a window of ≥ 100 ms, so at most 10 lines/s (about 1.4 kB/s). The window restarts when the LO changes. Lines are sent only while `RX ON` and `SPECTRUM ON`. Clients route by first token, so `F` joins `P`/`S`/`L`/`W`.
+
+§10: both pages show a waterfall panel next to the AUX bars, with 120 rows, newest on top, an auto-levelled 30 dB range, a MHz axis covering ±8 MHz around the LO, and decoded-packet channels marked. `web/elrs/` computes the same spectrum in the browser from each raw I/Q snapshot, with no firmware change. `web/elrs-rx/` sends `SPECTRUM ON` at connect and draws `F` lines; an `ERR` reply only disables the panel. The shared renderer lives in `web/elrs/waterfall.js` (elrs-rx → elrs import direction, as for `dk500.js`).
+
+---
+
 ### Task 14: Two-button flasher and CI-built published binaries
 
 **Files:**
