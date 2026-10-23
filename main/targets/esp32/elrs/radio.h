@@ -18,6 +18,7 @@ void radio_set_gain(bool hardware, unsigned code);
 void radio_gain_reply(char *buf, size_t cap);
 unsigned radio_gain_max(void);
 bool radio_arm(unsigned n);
+/* False means at_us had already passed; the hardware is restored as before radio_arm and radio_finish must not be called. */
 bool radio_trigger(int64_t at_us);
 bool radio_finish(radio_capture_t *cap);
 bool radio_finish_full_check(radio_capture_t *cap);

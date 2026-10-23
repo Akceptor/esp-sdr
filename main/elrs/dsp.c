@@ -187,7 +187,7 @@ static size_t spectrogram(const elrs_iq16_t *x, size_t n, const chan_t *ch, size
     for (size_t c = 0; c < nch; c++) {
         uint32_t sm[MAX_FRAMES];
         for (size_t f = 0; f < frames; f++) {
-            /* Bin power <= 2^26 after the 1/64 FFT scaling, so 4 bins x 5 frames fits 32 bits. */
+            /* Bin power stays below ~2^27 (1/64 FFT scaling plus Parseval margin), so 4 bins x 5 frames fits 32 bits. */
             uint32_t acc = 0;
             unsigned cnt = 0;
             size_t lo = f > SMOOTH_FRAMES ? f - SMOOTH_FRAMES : 0;

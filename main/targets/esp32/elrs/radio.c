@@ -168,12 +168,23 @@ bool radio_arm(unsigned n) {
     return true;
 }
 
+static void disarm(void) {
+    REG_WRITE(DUMP_CTRL, 0);
+    esp_rom_delay_us(10);
+    DPORT_REG_WRITE(DPORT_IRAM_DRAM_AHB_SEL_REG, saved_owner);
+    REG_WRITE(DUMP_BYTES, saved_bytes);
+    filter_restore();
+}
+
 bool radio_trigger(int64_t at_us) {
     if (at_us > 0) {
         int64_t wait = at_us - TRIGGER_LEAD_US - esp_timer_get_time();
         if (wait > 2000) vTaskDelay(pdMS_TO_TICKS((wait - 1000) / 1000));
         int64_t now = esp_timer_get_time();
-        if (now > at_us) return false;
+        if (now > at_us) {
+            disarm();
+            return false;
+        }
         uint32_t target = esp_cpu_get_cycle_count() + (uint32_t)(at_us - now) * (uint32_t)esp_rom_get_cpu_ticks_per_us();
         while ((int32_t)(esp_cpu_get_cycle_count() - target) < 0) {}
     }
@@ -191,11 +202,7 @@ static bool finish(radio_capture_t *cap, bool full) {
     cap->t_trig_us = start;
     cap->arm_us = arm_us;
     cap->capture_us = (unsigned)(esp_timer_get_time() - start);
-    REG_WRITE(DUMP_CTRL, 0);
-    esp_rom_delay_us(10);
-    DPORT_REG_WRITE(DPORT_IRAM_DRAM_AHB_SEL_REG, saved_owner);
-    REG_WRITE(DUMP_BYTES, saved_bytes);
-    filter_restore();
+    disarm();
     unsigned n = capture_n;
     cap->words = samples;
     cap->n = n;
