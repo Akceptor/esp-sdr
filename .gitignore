@@ -40,3 +40,6 @@ Thumbs.db
 # Site sources (a global ignore may hide html/json)
 !/web/**/*.html
 !/web/**/*.json
+
+# Full real captures stay local (contain SYNC packets)
+/tests/fixtures/elrs/local/

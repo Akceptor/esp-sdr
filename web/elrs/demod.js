@@ -377,7 +377,7 @@ export function decodeSnapshot(iq, fs, f0Mhz, uid, votes = new Map()) {
     }
     const { m } = best;
     const { matches, ...info } = b;
-    packets.push({ ...info, polarity: m.polarity, ota: m.ota, nonces: m.nonces, fecCorrections: m.fecErr,
+    packets.push({ ...info, pkt: m.pkt, polarity: m.polarity, ota: m.ota, nonces: m.nonces, fecCorrections: m.fecErr,
       syncErrors: m.syncErrors, ...dk.parsePacket(m.pkt) });
   }
   return { bursts: bursts.length, packets };

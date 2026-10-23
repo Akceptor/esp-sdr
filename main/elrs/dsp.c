@@ -12,7 +12,7 @@
 #define CENTROID_MARGIN 1
 #define MIN_FRAMES 20
 #define SMOOTH_FRAMES 2 /* +-2 frames: a 6 dB packet is invisible frame by frame */
-#define THRESH_X100 316u /* 5 dB over the 25th percentile of the smoothed power */
+#define THRESH_X100 200u /* 3 dB over the 25th percentile of the smoothed power */
 #define WINDOW_SHIFT 11  /* Q15 window >> 11 leaves 4 bits of headroom over 10-bit input */
 #define OVERLAP_DROP_DB 10.0f
 

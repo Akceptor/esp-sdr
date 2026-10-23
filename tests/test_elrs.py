@@ -42,6 +42,16 @@ class ElrsHost(unittest.TestCase):
     def test_decode_noise(self):
         self.run_c('decode', ['dsp', 'ota3', 'fhss'], ['--noise', '10000'])
 
+    def test_caps(self):
+        fx = ROOT / 'tests/fixtures/elrs'
+        print(self.run_c('caps', ['dsp', 'ota3', 'fhss'], [str(fx / 'caps_rc.bin'), str(fx / 'caps_rc.json')]), end='')
+
+    def test_caps_local(self):
+        full = ROOT / 'tests/fixtures/elrs/local/caps_full.bin'
+        if not full.exists():
+            self.skipTest('local/caps_full.bin not present')
+        print(self.run_c('caps', ['dsp', 'ota3', 'fhss'], ['--local', str(full)]), end='')
+
 
 if __name__ == '__main__':
     unittest.main()
