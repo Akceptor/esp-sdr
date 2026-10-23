@@ -28,6 +28,9 @@ class ElrsHost(unittest.TestCase):
     def test_ota3(self):
         self.run_c('ota3', ['ota3'])
 
+    def test_fhss(self):
+        self.run_c('fhss', ['fhss'])
+
 
 if __name__ == '__main__':
     unittest.main()
