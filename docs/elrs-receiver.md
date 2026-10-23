@@ -22,12 +22,12 @@ The profile builds only for the ESP32 with `ESP_SDR_STREAMING=OFF`. `INFO` answe
 
 ## Serial protocol
 
-Lines are ASCII, `\n`-terminated. Every command gets exactly one reply line. `VERSION?`, `TRANSPORT?`, `BAUD`, `RELEASE` and the lease rules behave as in `docs/protocol.md`. While `RX ON`, unsolicited lines starting with `P`, `S`, `L` or `W` are interleaved with replies; clients route by first token. The one reply that starts with a stream token is `STATS?`.
+Lines are ASCII, `\n`-terminated. Every command gets exactly one reply line. `VERSION?`, `TRANSPORT?`, `BAUD`, `RELEASE` and the lease rules behave as in `docs/protocol.md`. While `RX ON`, unsolicited lines starting with `P`, `S`, `L`, `W` or `F` are interleaved with replies; clients route by first token. The one reply that starts with a stream token is `STATS?`.
 
 | Command | Reply / notes |
 | --- | --- |
 | `INFO` | `ESP32ELRS 1 elrs-rx 0` |
-| `CAPS` | `CAPS VERSION ELRSRX DK500 OTA3 UIDNVS BENCH SNAP16`. `FHSS TIMED` are added with timed mode, `RETUNE` with the retune benchmark, `HOP` only once hop mode is qualified. |
+| `CAPS` | `CAPS VERSION ELRSRX DK500 OTA3 UIDNVS BENCH SNAP16 SPECTRUM`. `FHSS TIMED` are added with timed mode, `RETUNE` with the retune benchmark, `HOP` only once hop mode is qualified. |
 | `UID <12 hex>` | `OK`, or `ERR uid` / `ERR args`. RAM only; resets stats. Never echoed. |
 | `UID?` | `UID NONE`, `UID RAM` or `UID NVS`. No fingerprint. |
 | `UID SAVE` | Writes NVS namespace `elrsrx`, key `uid` (6-byte blob); `OK`, or `ERR no_uid` with nothing set. `UID?` then reports `NVS`. |
@@ -44,6 +44,7 @@ Lines are ASCII, `\n`-terminated. Every command gets exactly one reply line. `VE
 | `STATS?` | One `S` line. |
 | `BENCH <n>` | `BENCH n= cap_us= arm_us= read_us= det_us= demod_us= total_us= hits=` as p50/p99. Uses the configured UID, or the public test UID `00000000133e` when none is set. `ERR rx_on` while RX is on. |
 | `SNAP16 <samples>` | `DATA <n> <crc32> <us>` then 2n bytes of raw samples. `ERR rx_on` while RX is on. |
+| `SPECTRUM ON\|OFF` | `OK`. RAM only, default `OFF` at boot, allowed in any RX state; `F` lines are sent only while `RX ON` and `SPECTRUM ON`. |
 | `SYNC <n>` | Echoes `SYNC <n>`; used by hosts to find the end of the stream. |
 
 Boot state is `RX OFF` with the UID loaded from NVS if one was saved.
@@ -53,6 +54,7 @@ Boot state is `RX OFF` with the UID loaded from NVS if one was saved.
 - `P <t_us> <ch> <R|S|M> - <cfo_khz> <snr_db> <fec> <data>`. `t_us` is the capture trigger time plus the end of the last sync bit; the nonce is always `-` in scan mode. For `R` and `M`, `data` is the 8-byte packet as 16 hex characters; for `S`, `fhss,nonce,rate,tlm,swmode,mm`.
 - `S up= mode= state= snaps= bursts= ok= rc= sync= crcfail= mirror= dec_us= cap_us= ret_us= lock_err_us= cfo_khz= gain= drop=` once per second. `state=ACQ`, `mode=SCAN`. `cfo_khz` is an EMA (alpha 0.2) of accepted packets, rejecting jumps over 50 kHz. `drop` counts lines lost because the output ring was full.
 - `W <text>`: `wide_mode` (Wide packets or SYNC with `swmode` 0, no `P` is emitted; at most once per 5 s), `rate <n>` (SYNC with a rate index other than 14, at most once per 5 s, the `P` is still emitted), `clip` (more than 50 clipped samples in a capture, once per s), `stale` (recalibration was stale for the capture, once per 5 s), `capture_timeout` / `capture_memory` (capture failed; once per 5 s).
+- `F <t_us> <lo_mhz> <128 hex>` (with `SPECTRUM ON`): the detector's 64-bin peak-hold spectrum, 141 bytes for a 4-digit `t_us`. Hex byte j (lowercase) is the bin centred at LO + (j - 32) * 250 kHz, so byte 0 is LO - 8 MHz and byte 32 is LO. Value is `clamp(round(20*log10(max(|X|^2, 1))), 0, 255)` (0.5 dB steps). Each line is the per-bin maximum over all frames of all snapshots in a window of at least 100 ms, so at most 10 lines/s (about 1.4 kB/s); `t_us` is the capture trigger time of the first snapshot in the window and consecutive lines are at least 100 ms apart. If the LO changes while a window accumulates, it restarts at the new LO (no mixed-LO rows). `SPECTRUM ON|OFF`, `RX ON` and `RX OFF` clear the window. A dropped `F` line counts in `drop`.
 - A SYNC whose UID bytes do not match the configured UID counts as `crcfail` and produces no `P`.
 
 ### Task layout

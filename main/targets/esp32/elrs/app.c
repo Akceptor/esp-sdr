@@ -36,6 +36,7 @@ typedef enum { UID_NONE, UID_RAM, UID_NVS } uid_source_t;
 static volatile bool rx_on, want_rx;
 static volatile unsigned loop_gen;
 static volatile bool stats_reset_req;
+static volatile bool spectrum_on, spectrum_clear_req;
 static volatile elrs_polarity_t polarity = ELRS_POL_INV;
 static elrs_mode_t mode_requested = ELRS_MODE_AUTO;
 static uint8_t uid[6];
@@ -184,13 +185,22 @@ static void radio_task(void *arg) {
     (void)arg;
     static limiter_t clip_w, stale_w, cap_w;
     int64_t last_stats_us = esp_timer_get_time();
+    uint8_t acc[ELRS_FFT_N];
+    unsigned acc_lo = 0;
+    uint32_t acc_t_us = 0;
+    bool acc_has = false;
     for (;;) {
+        if (spectrum_clear_req) {
+            spectrum_clear_req = false;
+            acc_has = false;
+        }
         if (stats_reset_req) {
             stats_reset_req = false;
             memset(&stats, 0, sizeof(stats));
             cfo_valid = false;
         }
         if (!want_rx) {
+            acc_has = false;
             loop_gen++;
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
@@ -226,6 +236,26 @@ static void radio_task(void *arg) {
             stats.bursts += ds.bursts;
             stats.crcfail += ds.crc_fail;
             for (size_t i = 0; i < n; i++) accept_packet(&cap, &pk[i], cfg.uid);
+            if (spectrum_on) {
+                uint8_t tmp[ELRS_FFT_N];
+                if (elrs_spectrum(tmp)) {
+                    if (!acc_has || cfg.lo_mhz != acc_lo) {
+                        memcpy(acc, tmp, sizeof(acc));
+                        acc_lo = cfg.lo_mhz;
+                        acc_t_us = (uint32_t)cap.t_trig_us;
+                        acc_has = true;
+                    } else {
+                        for (int j = 0; j < ELRS_FFT_N; j++)
+                            if (tmp[j] > acc[j]) acc[j] = tmp[j];
+                    }
+                    if ((uint32_t)cap.t_trig_us - acc_t_us >= 100000) {
+                        char fb[160];
+                        int fn = elrs_fmt_spectrum(fb, sizeof(fb), acc_t_us, acc_lo, acc);
+                        if (fn > 0) out_stream(fb, (size_t)fn);
+                        acc_has = false;
+                    }
+                }
+            }
         }
         memset(cfg.uid, 0, sizeof(cfg.uid));
         int64_t now = esp_timer_get_time();
@@ -346,7 +376,7 @@ static void command(char *line) {
     elrs_cmd_parse(line, &c);
     switch (c.kind) {
     case ELRS_CMD_INFO: reply("ESP32ELRS 1 elrs-rx 0\n"); break;
-    case ELRS_CMD_CAPS: reply("CAPS VERSION ELRSRX DK500 OTA3 UIDNVS BENCH SNAP16\n"); break;
+    case ELRS_CMD_CAPS: reply("CAPS VERSION ELRSRX DK500 OTA3 UIDNVS BENCH SNAP16 SPECTRUM\n"); break;
     case ELRS_CMD_PARK:
         xSemaphoreTake(radio_mx, portMAX_DELAY);
         radio_park(c.u.park_mhz);
@@ -423,11 +453,17 @@ static void command(char *line) {
         polarity = c.u.polarity;
         reply("OK\n");
         break;
+    case ELRS_CMD_SPECTRUM:
+        spectrum_on = c.u.on;
+        spectrum_clear_req = true;
+        reply("OK\n");
+        break;
     case ELRS_CMD_RX_ON:
         if (uid_source == UID_NONE) {
             reply("ERR no_uid\n");
             break;
         }
+        spectrum_clear_req = true;
         rx_on = true;
         reply("OK\n");
         want_rx = true;

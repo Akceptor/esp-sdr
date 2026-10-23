@@ -428,3 +428,11 @@ Each milestone ends with the builder measuring on the attached board, deciding a
   - Names: `web/elrs-rx/`, `esp32-elrs`, `PARK 2438`.
 - **Open [O]:** FFT size and pitch, filter taps, fixed versus float per stage, sentinel-check reduction, HOP LO offset, tracker gains, manual gain in timed modes, `SdrLink` reuse, dual core.
 - **Questions for the user:** none outstanding.
+
+**2026-10-23 — SDR waterfall (Task 13b, user request).**
+
+§8 gains the command `SPECTRUM ON|OFF`: `OK`, RAM only, default `OFF`, allowed in any RX state. `CAPS` gains `SPECTRUM`.
+
+There is a fifth streamed line, `F <t_us> <lo_mhz> <128 hex>`. It carries the detector's 64-bin peak-hold spectrum, DC-centred: hex byte j = bin centred at LO + (j - 32) * 250 kHz, value `clamp(round(20*log10(max(|X|^2, 1))), 0, 255)` in 0.5 dB steps. Each line is the max over all frames of all snapshots in a window of >= 100 ms, so at most 10 lines/s (about 1.4 kB/s). The window restarts when the LO changes. Lines are sent only while `RX ON` and `SPECTRUM ON`. Clients route by first token, so `F` joins `P`/`S`/`L`/`W`.
+
+§10: both pages show a waterfall panel next to the AUX bars, with 120 rows, newest on top, an auto-levelled 30 dB range, a MHz axis covering +-8 MHz around the LO, and decoded-packet channels marked. `web/elrs/` computes the same spectrum in the browser from each raw I/Q snapshot, with no firmware change. `web/elrs-rx/` sends `SPECTRUM ON` at connect and draws `F` lines; an `ERR` reply only disables the panel. The shared renderer lives in `web/elrs/waterfall.js` (elrs-rx -> elrs import direction, as for `dk500.js`).
