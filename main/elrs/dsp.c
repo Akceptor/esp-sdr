@@ -18,7 +18,10 @@
 
 static int16_t g_window[ELRS_FFT_N];
 static int16_t g_cos[ELRS_FFT_N / 2], g_sin[ELRS_FFT_N / 2];
+static uint8_t g_rev[ELRS_FFT_N];
 static volatile int g_tables_ready;
+
+static unsigned bitrev6(unsigned v);
 
 static void tables_init(void)
 {
@@ -32,6 +35,9 @@ static void tables_init(void)
     for (int i = 0; i < ELRS_FFT_N / 2; i++) {
         g_cos[i] = (int16_t)lrintf(32767.0f * cosf(2.0f * pi * (float)i / ELRS_FFT_N));
         g_sin[i] = (int16_t)lrintf(32767.0f * sinf(2.0f * pi * (float)i / ELRS_FFT_N));
+    }
+    for (unsigned i = 0; i < ELRS_FFT_N; i++) {
+        g_rev[i] = (uint8_t)bitrev6(i);
     }
     g_tables_ready = 1;
 }
@@ -54,13 +60,12 @@ void elrs_convert(const uint32_t *words, elrs_iq16_t *out, size_t n, elrs_conver
     long sum_i = 0, sum_q = 0;
     for (size_t k = 0; k < n; k++) {
         uint32_t w = words[k];
-        elrs_iq16_t s = {(int16_t)sext10(w), (int16_t)sext10(w >> 10)};
-        if (s.i >= 511 || s.i <= -511 || s.q >= 511 || s.q <= -511) {
-            local.clipped++;
-        }
-        sum_i += s.i;
-        sum_q += s.q;
-        memcpy(&out[k], &s, sizeof s);
+        int vi = sext10(w), vq = sext10(w >> 10);
+        local.clipped += ((unsigned)(vi + 510) > 1020u) | ((unsigned)(vq + 510) > 1020u);
+        sum_i += vi;
+        sum_q += vq;
+        out[k].i = (int16_t)vi;
+        out[k].q = (int16_t)vq;
     }
     long half = (long)(n / 2);
     long mi = (sum_i >= 0 ? sum_i + half : sum_i - half) / (long)n;
@@ -85,11 +90,33 @@ static unsigned bitrev6(unsigned v)
     return r;
 }
 
+/* Decimation-in-time butterflies on data already in bit-reversed order. */
+static void fft64_butterflies(int16_t *data)
+{
+    for (unsigned half = 1; half < ELRS_FFT_N; half <<= 1) {
+        unsigned tw_step = ELRS_FFT_N / (2 * half);
+        for (unsigned base = 0; base < ELRS_FFT_N; base += 2 * half) {
+            for (unsigned k = 0; k < half; k++) {
+                int wr = g_cos[k * tw_step], wi = -g_sin[k * tw_step];
+                int16_t *pa = data + 2 * (base + k), *pb = pa + 2 * half;
+                int br = pb[0], bi = pb[1];
+                int tr = (br * wr - bi * wi + 16384) >> 15;
+                int ti = (br * wi + bi * wr + 16384) >> 15;
+                int ar = pa[0], ai = pa[1];
+                pa[0] = (int16_t)((ar + tr) >> 1);
+                pa[1] = (int16_t)((ai + ti) >> 1);
+                pb[0] = (int16_t)((ar - tr) >> 1);
+                pb[1] = (int16_t)((ai - ti) >> 1);
+            }
+        }
+    }
+}
+
 void elrs_fft64(int16_t data[2 * ELRS_FFT_N])
 {
     tables_init();
     for (unsigned i = 0; i < ELRS_FFT_N; i++) {
-        unsigned j = bitrev6(i);
+        unsigned j = g_rev[i];
         if (j > i) {
             int16_t tr = data[2 * i], ti = data[2 * i + 1];
             data[2 * i] = data[2 * j];
@@ -98,23 +125,7 @@ void elrs_fft64(int16_t data[2 * ELRS_FFT_N])
             data[2 * j + 1] = ti;
         }
     }
-    for (unsigned half = 1; half < ELRS_FFT_N; half <<= 1) {
-        unsigned tw_step = ELRS_FFT_N / (2 * half);
-        for (unsigned base = 0; base < ELRS_FFT_N; base += 2 * half) {
-            for (unsigned k = 0; k < half; k++) {
-                int wr = g_cos[k * tw_step], wi = -g_sin[k * tw_step];
-                unsigned a = base + k, b = a + half;
-                int br = data[2 * b], bi = data[2 * b + 1];
-                int tr = (br * wr - bi * wi + 16384) >> 15;
-                int ti = (br * wi + bi * wr + 16384) >> 15;
-                int ar = data[2 * a], ai = data[2 * a + 1];
-                data[2 * a] = (int16_t)((ar + tr) >> 1);
-                data[2 * a + 1] = (int16_t)((ai + ti) >> 1);
-                data[2 * b] = (int16_t)((ar - tr) >> 1);
-                data[2 * b + 1] = (int16_t)((ai - ti) >> 1);
-            }
-        }
-    }
+    fft64_butterflies(data);
 }
 
 /* ---- Burst detector ---- */
@@ -157,10 +168,11 @@ static size_t spectrogram(const elrs_iq16_t *x, size_t n, const chan_t *ch, size
     for (size_t f = 0; f < frames; f++) {
         const elrs_iq16_t *p = x + f * ELRS_FRAME_STEP;
         for (int i = 0; i < ELRS_FFT_N; i++) {
-            buf[2 * i] = (int16_t)((p[i].i * (int)g_window[i]) >> WINDOW_SHIFT);
-            buf[2 * i + 1] = (int16_t)((p[i].q * (int)g_window[i]) >> WINDOW_SHIFT);
+            unsigned r = g_rev[i];
+            buf[2 * r] = (int16_t)((p[i].i * (int)g_window[i]) >> WINDOW_SHIFT);
+            buf[2 * r + 1] = (int16_t)((p[i].q * (int)g_window[i]) >> WINDOW_SHIFT);
         }
-        elrs_fft64(buf);
+        fft64_butterflies(buf);
         for (int k = 0; k < ELRS_FFT_N; k++) {
             bins[f][k] = (uint32_t)((int)buf[2 * k] * buf[2 * k] + (int)buf[2 * k + 1] * buf[2 * k + 1]);
         }
@@ -175,7 +187,8 @@ static size_t spectrogram(const elrs_iq16_t *x, size_t n, const chan_t *ch, size
     for (size_t c = 0; c < nch; c++) {
         uint32_t sm[MAX_FRAMES];
         for (size_t f = 0; f < frames; f++) {
-            uint64_t acc = 0;
+            /* Bin power <= 2^26 after the 1/64 FFT scaling, so 4 bins x 5 frames fits 32 bits. */
+            uint32_t acc = 0;
             unsigned cnt = 0;
             size_t lo = f > SMOOTH_FRAMES ? f - SMOOTH_FRAMES : 0;
             size_t hi = f + SMOOTH_FRAMES < frames ? f + SMOOTH_FRAMES : frames - 1;
@@ -183,7 +196,7 @@ static size_t spectrogram(const elrs_iq16_t *x, size_t n, const chan_t *ch, size
                 acc += pw[c][g];
                 cnt++;
             }
-            sm[f] = (uint32_t)(acc / cnt);
+            sm[f] = acc / cnt;
         }
         memcpy(pw[c], sm, frames * sizeof sm[0]);
     }
