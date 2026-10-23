@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP-SDR Flasher</title>
+<link rel="stylesheet" href="../style.css">
+<script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+<style>
+  esp-web-install-button { display: inline-block; }
+  esp-web-install-button button { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+</style>
+</head>
+<body>
+<header class="site"><a href="../">ESP-SDR Tools</a><a href="../elrs/">ELRS viewer</a><a href="./">Flasher</a></header>
+<main>
+<h1>Flash ESP-SDR to an ESP32</h1>
+<div class="card">
+  <p>Connect the board over USB, click the button and choose its serial port. This writes the bootloader, partition
+  table and application for the plain <strong>ESP32</strong> chip (WROOM-32 / WROOM-32U). Existing flash content is
+  replaced.</p>
+  <esp-web-install-button manifest="manifest.json">
+    <button slot="activate" class="primary">Install ESP-SDR</button>
+    <span slot="unsupported" class="muted">Web Serial is not supported in this browser. Use desktop Chrome, Edge or Opera.</span>
+    <span slot="not-allowed" class="muted">Web Serial needs HTTPS (or localhost).</span>
+  </esp-web-install-button>
+</div>
+
+<h2>Notes</h2>
+<ul>
+  <li>WROOM-32 boards have no native USB. They need a USB-UART bridge (CP210x, CH340 or FTDI) and its driver on your computer.</li>
+  <li>If flashing fails to connect, hold the <strong>BOOT</strong> button while you press Install (and tap EN/RESET if needed), then release BOOT once writing starts.</li>
+  <li>After flashing, the board speaks the <a href="https://github.com/ESPARGOS/esp-sdr/blob/main/docs/protocol.md">serial protocol</a> at 2 Mbaud. Try the <a href="../elrs/">ELRS viewer</a>.</li>
+</ul>
+
+<h2>Firmware</h2>
+<p>
+  Official ESP-SDR build of upstream commit <code>f86da81</code> for ESP32, unmodified. Source:
+  <a href="https://github.com/Akceptor/esp-sdr">Akceptor/esp-sdr</a>,
+  <a href="https://github.com/ESPARGOS/esp-sdr">ESPARGOS/esp-sdr</a>. Licensed under GPL-3.0.
+</p>
+<table>
+  <tr><th>File</th><th>Offset</th><th>SHA-256</th></tr>
+  <tr><td><a href="firmware/esp32/0-bootloader.bin">0-bootloader.bin</a></td><td>0x1000</td><td><code>8660de8158d044e0d6d45ad90d8a6eb23b254836f4dd7c2272ed10b08b2dc8db</code></td></tr>
+  <tr><td><a href="firmware/esp32/1-partition-table.bin">1-partition-table.bin</a></td><td>0x8000</td><td><code>7f00b6c042a89b15b0cac534f82ed988caf29278ff5700b0c511eb1b5bb7c820</code></td></tr>
+  <tr><td><a href="firmware/esp32/2-esp_sdr.bin">2-esp_sdr.bin</a></td><td>0x10000</td><td><code>919baec09c543604248044d984f1e41b7a425812d37d9c1363a63725b89b5aab</code></td></tr>
+</table>
+<p class="muted">Flashing is at your own risk; this program comes with ABSOLUTELY NO WARRANTY.</p>
+</main>
+</body>
+</html>

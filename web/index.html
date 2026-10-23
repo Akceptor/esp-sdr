@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP-SDR Tools</title>
+<meta name="description" content="Browser tools for the ESP-SDR firmware: ELRS stick viewer and web flasher.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site"><a href="./">ESP-SDR Tools</a><a href="elrs/">ELRS viewer</a><a href="flash/">Flasher</a></header>
+<main>
+<h1>ESP-SDR in the browser</h1>
+<p>
+  <a href="https://github.com/ESPARGOS/esp-sdr">ESP-SDR</a> turns an ESP32 into a small 2.4 GHz
+  software-defined radio that streams raw I/Q snapshots over a serial port. These pages talk to it directly
+  from your browser. Nothing is uploaded; everything runs locally.
+</p>
+<div class="cards">
+  <div class="card">
+    <h2 style="margin-top:0">ELRS stick viewer</h2>
+    <p>Connect an ESP32 running ESP-SDR over Web Serial, enter your ExpressLRS binding phrase, and watch the
+    transmitter sticks and AUX channels live. Decodes ELRS DK500 (LR1121, 2.4 GHz GFSK) packets in JavaScript.</p>
+    <a class="btn primary" href="elrs/">Open viewer</a>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Web flasher</h2>
+    <p>Flash the official ESP-SDR firmware to an ESP32 (WROOM-32 / WROOM-32U) from Chrome or Edge, no tools to install.</p>
+    <a class="btn primary" href="flash/">Open flasher</a>
+  </div>
+</div>
+<h2>Requirements</h2>
+<p>A desktop Chromium-based browser (Chrome, Edge, Opera) with Web Serial support, served over HTTPS or localhost.
+Firefox and Safari do not implement Web Serial.</p>
+<h2>Source and license</h2>
+<p>
+  Source: <a href="https://github.com/Akceptor/esp-sdr">github.com/Akceptor/esp-sdr</a> (fork of
+  <a href="https://github.com/ESPARGOS/esp-sdr">ESPARGOS/esp-sdr</a>). The firmware and these pages are
+  free software under the GNU General Public License v3.0; see the repository for the license text.
+  This program comes with ABSOLUTELY NO WARRANTY.
+</p>
+</main>
+</body>
+</html>

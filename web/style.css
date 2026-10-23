@@ -1,0 +1,75 @@
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --fg: #1b1f24;
+  --muted: #5d6673;
+  --line: #d6dae0;
+  --accent: #1f6feb;
+  --accent-fg: #ffffff;
+  --ok: #1a9c4a;
+  --warn: #c98a00;
+  --bad: #d1344b;
+  --dot: #e5484d;
+  --code: #eceff3;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151a;
+    --panel: #1b2027;
+    --fg: #e6e9ee;
+    --muted: #9aa4b2;
+    --line: #2d343e;
+    --accent: #5b9bff;
+    --accent-fg: #0b1220;
+    --ok: #3fbf6f;
+    --warn: #e0a822;
+    --bad: #ff6b81;
+    --dot: #ff7a7f;
+    --code: #242a33;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main, header.site { max-width: 960px; margin: 0 auto; padding: 16px; }
+header.site { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+header.site a { color: var(--fg); text-decoration: none; font-weight: 600; }
+header.site a:hover { color: var(--accent); }
+h1 { font-size: 1.6rem; margin: 8px 0 12px; }
+h2 { font-size: 1.15rem; margin: 24px 0 8px; }
+a { color: var(--accent); }
+code, pre { background: var(--code); border-radius: 4px; font-size: 0.9em; }
+code { padding: 1px 5px; }
+pre { padding: 10px; overflow-x: auto; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 12px 0; }
+.cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.cards .card { margin: 0; }
+.muted { color: var(--muted); }
+button, .btn {
+  font: inherit;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--fg);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+button.primary, .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: default; }
+input[type=text], input[type=password] {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--fg);
+  min-width: 0;
+}
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+td, th { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; word-break: break-all; }

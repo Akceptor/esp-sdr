@@ -1,0 +1,15 @@
+{
+  "name": "ESP-SDR",
+  "version": "f86da81",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        { "path": "firmware/esp32/0-bootloader.bin", "offset": 4096 },
+        { "path": "firmware/esp32/1-partition-table.bin", "offset": 32768 },
+        { "path": "firmware/esp32/2-esp_sdr.bin", "offset": 65536 }
+      ]
+    }
+  ]
+}

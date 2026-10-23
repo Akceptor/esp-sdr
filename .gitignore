@@ -33,3 +33,10 @@ Thumbs.db
 
 # CI SDK checkout
 /.esp-idf/
+
+# Local git worktrees
+/.worktrees/
+
+# Site sources (a global ignore may hide html/json)
+!/web/**/*.html
+!/web/**/*.json

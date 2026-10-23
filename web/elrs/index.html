@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELRS Stick Viewer</title>
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="elrs.css">
+</head>
+<body>
+<header class="site"><a href="../">ESP-SDR Tools</a><a href="./">ELRS viewer</a><a href="../flash/">Flasher</a></header>
+<main>
+  <div id="unsupported" class="banner" hidden>
+    Web Serial is not available in this browser. Use a desktop Chrome, Edge or Opera over HTTPS (or localhost).
+    Firefox and Safari do not support it.
+  </div>
+  <div class="bar">
+    <input id="phrase" class="phrase" type="password" placeholder="ELRS binding phrase" autocomplete="off" spellcheck="false" aria-label="Binding phrase">
+    <button id="set">Set</button>
+    <button id="connect" class="primary">Connect</button>
+    <label class="remember"><input id="remember" type="checkbox"> remember phrase in this browser</label>
+    <div class="status"><span id="led" class="led"></span><span id="stats">Not connected</span></div>
+  </div>
+  <p id="uid" class="muted" style="margin:4px 0 0;font-size:.85rem"></p>
+  <div class="grid" style="margin-top:16px">
+    <div class="gimbals">
+      <div class="gimbal">
+        <div class="pad stale" id="padL"><div class="dot"></div></div>
+        <div class="cap">Yaw / Throttle</div>
+        <div class="vals" id="valsL">-</div>
+      </div>
+      <div class="gimbal">
+        <div class="pad stale" id="padR"><div class="dot"></div></div>
+        <div class="cap">Roll / Pitch</div>
+        <div class="vals" id="valsR">-</div>
+      </div>
+    </div>
+    <div class="aux">
+      <h2>AUX</h2>
+      <div id="auxrows"></div>
+    </div>
+  </div>
+  <p class="note">
+    Mode 2 layout, CRSF values 172..1811. AUX1 is the arm bit. With Hybrid8 switches each AUX updates only when
+    its slot comes round, so a bar can lag a few packets. The phrase is hashed in your browser and never sent
+    anywhere. The receiver is tuned to 2436 MHz and sees about 12 of the 80 hopping channels, so only a fraction
+    of snapshots contain a packet.
+  </p>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

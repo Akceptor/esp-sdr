@@ -1,0 +1,7 @@
+{
+ "snapshots": 6,
+ "samples": 16380,
+ "fs": 16000000.0,
+ "freqMhz": 2436,
+ "format": "int8 interleaved I,Q (adc/128)"
+}

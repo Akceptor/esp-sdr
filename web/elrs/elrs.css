@@ -1,0 +1,47 @@
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bar .phrase { flex: 1 1 200px; }
+.status { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; margin-top: 4px; color: var(--muted); font-size: 0.9rem; }
+.led { width: 12px; height: 12px; border-radius: 50%; background: var(--line); flex: none; }
+.led.on { background: var(--ok); }
+.led.warn { background: var(--warn); }
+.led.err { background: var(--bad); }
+.remember { font-size: 0.85rem; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.banner { background: var(--panel); border: 1px solid var(--bad); color: var(--bad); border-radius: 8px; padding: 10px 14px; margin: 12px 0; }
+.banner[hidden] { display: none; }
+.grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.gimbals { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.gimbal { text-align: center; }
+.pad {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background-image: linear-gradient(var(--line), var(--line)), linear-gradient(var(--line), var(--line));
+  background-size: 1px 100%, 100% 1px;
+  background-position: 50% 0, 0 50%;
+  background-repeat: no-repeat;
+}
+.pad .dot {
+  position: absolute;
+  width: 16px; height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: var(--dot);
+  left: 50%; top: 50%;
+}
+.pad.stale .dot { background: var(--muted); opacity: 0.5; }
+.gimbal .cap { margin-top: 6px; font-weight: 600; }
+.gimbal .vals { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.aux { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.aux h2 { margin: 0 0 8px; font-size: 1rem; }
+.auxrow { display: grid; grid-template-columns: 3.2rem 1fr 3rem; gap: 8px; align-items: center; margin: 6px 0; font-size: 0.9rem; }
+.track { height: 12px; background: var(--code); border-radius: 6px; overflow: hidden; }
+.fill { height: 100%; width: 0; background: var(--accent); }
+.auxrow.unseen .fill { background: var(--line); }
+.auxrow .num { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.note { font-size: 0.85rem; color: var(--muted); margin-top: 16px; }
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr; }
+}
