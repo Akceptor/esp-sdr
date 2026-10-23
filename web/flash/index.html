@@ -12,7 +12,7 @@
 </style>
 </head>
 <body>
-<header class="site"><a href="../">ESP-SDR Tools</a><a href="../elrs/">ELRS viewer</a><a href="./">Flasher</a></header>
+<header class="site"><a href="../">ESP-SDR Tools</a><a href="../elrs/">ELRS viewer</a><a href="../elrs-rx/">ELRS receiver</a><a href="./">Flasher</a></header>
 <main>
 <h1>Flash ESP-SDR to an ESP32</h1>
 <div class="card">
@@ -20,7 +20,19 @@
   table and application for the plain <strong>ESP32</strong> chip (WROOM-32 / WROOM-32U). Existing flash content is
   replaced.</p>
   <esp-web-install-button manifest="manifest.json">
-    <button slot="activate" class="primary">Install ESP-SDR</button>
+    <button slot="activate" class="primary">Install stock ESP-SDR</button>
+    <span slot="unsupported" class="muted">Web Serial is not supported in this browser. Use desktop Chrome, Edge or Opera.</span>
+    <span slot="not-allowed" class="muted">Web Serial needs HTTPS (or localhost).</span>
+  </esp-web-install-button>
+</div>
+
+<div class="card">
+  <h2>ELRS receiver firmware</h2>
+  <p>Receive-only ExpressLRS 2.4 GHz receiver build for the same ESP32 boards, driven from the
+  <a href="../elrs-rx/">ELRS receiver</a> page. Switching between firmwares means reflashing. A UID saved on the
+  device survives unless you choose to erase.</p>
+  <esp-web-install-button manifest="manifest-elrs.json">
+    <button slot="activate" class="primary">Install ELRS receiver</button>
     <span slot="unsupported" class="muted">Web Serial is not supported in this browser. Use desktop Chrome, Edge or Opera.</span>
     <span slot="not-allowed" class="muted">Web Serial needs HTTPS (or localhost).</span>
   </esp-web-install-button>
@@ -45,6 +57,10 @@
   <tr><td><a href="firmware/esp32/1-partition-table.bin">1-partition-table.bin</a></td><td>0x8000</td><td><code>7f00b6c042a89b15b0cac534f82ed988caf29278ff5700b0c511eb1b5bb7c820</code></td></tr>
   <tr><td><a href="firmware/esp32/2-esp_sdr.bin">2-esp_sdr.bin</a></td><td>0x10000</td><td><code>919baec09c543604248044d984f1e41b7a425812d37d9c1363a63725b89b5aab</code></td></tr>
 </table>
+<h2>ELRS receiver firmware</h2>
+<!-- elrs-firmware:begin -->
+<p class="muted">The ELRS receiver build is not published yet.</p>
+<!-- elrs-firmware:end -->
 <p class="muted">Flashing is at your own risk; this program comes with ABSOLUTELY NO WARRANTY.</p>
 </main>
 </body>
