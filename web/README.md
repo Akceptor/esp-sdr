@@ -5,9 +5,11 @@ Static site deployed to GitHub Pages from `web/` (see `.github/workflows/pages.y
 - `index.html` landing page
 - `elrs/` ELRS stick viewer: Web Serial to an ESP-SDR board, DK500 packets decoded in JavaScript.
   Needs the stock ESP-SDR firmware
-  (`dk500.js` protocol, `demod.js` DSP, `worker.js` decode thread, `serial.js` link, `app.js` UI)
+  (`dk500.js` protocol, `demod.js` DSP, `worker.js` decode thread, `serial.js` link, `app.js` UI).
+  The right-hand panel is a ±8 MHz peak-hold waterfall around the LO, computed by a browser FFT (`waterfall.js`)
 - `elrs-rx/` ELRS receiver page: Web Serial to a board running the `esp32-elrs` firmware, which decodes ELRS
-  packets on-chip and streams channel data. Needs the ELRS receiver firmware
+  packets on-chip and streams channel data. Needs the ELRS receiver firmware.
+  The right-hand panel is a ±8 MHz peak-hold waterfall around the LO, drawn from the firmware `F` lines
 - `flash/` ESP Web Tools flasher with the official firmware build of commit `f86da81` (stock only; the page flashes the stock firmware)
 
 Run locally (Web Serial works on `localhost`):

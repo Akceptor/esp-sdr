@@ -22,7 +22,7 @@
     <div class="status"><span id="led" class="led"></span><span id="stats">Not connected</span></div>
   </div>
   <p id="uid" class="muted" style="margin:4px 0 0;font-size:.85rem"></p>
-  <div class="grid" style="margin-top:16px">
+  <div class="grid wf3" style="margin-top:16px">
     <div class="gimbals">
       <div class="gimbal">
         <div class="pad stale" id="padL"><div class="dot"></div></div>
@@ -39,6 +39,7 @@
       <h2>AUX</h2>
       <div id="auxrows"></div>
     </div>
+    <div class="wf"><h2>Spectrum</h2><canvas id="wf" width="64" height="120"></canvas><div id="wfaxis" class="wfaxis"></div><p class="muted">MHz · ±8 MHz around 2436 MHz; only channels in this span are visible. Magenta = decoded packet.</p></div>
   </div>
   <p class="note">
     Mode 2 layout, CRSF values 172..1811. AUX1 is the arm bit. With Hybrid8 switches each AUX updates only when

@@ -1,5 +1,6 @@
 import { SdrLink, supported } from './serial.js';
 import { uidFromPhrase, toHex } from './dk500.js';
+import { WaterfallModel, drawWaterfall } from './waterfall.js';
 
 const FREQ_MHZ = 2436;
 const RATE_CODE = 6;
@@ -13,6 +14,7 @@ const el = {
   phrase: $('phrase'), set: $('set'), connect: $('connect'), remember: $('remember'),
   led: $('led'), stats: $('stats'), uid: $('uid'), unsupported: $('unsupported'),
   padL: $('padL'), padR: $('padR'), valsL: $('valsL'), valsR: $('valsR'), auxrows: $('auxrows'),
+  wf: $('wf'), wfaxis: $('wfaxis'),
 };
 
 let link = null;
@@ -27,6 +29,7 @@ let lastPacketAt = null;
 let lastChannel = null;
 let sticks = null;
 const aux = new Array(8).fill(null);
+let wf = new WaterfallModel(120);
 
 const auxBars = [];
 for (let i = 0; i < 8; i++) {
@@ -71,6 +74,7 @@ function startWorker() {
   worker.onmessage = (ev) => {
     const m = ev.data;
     busy = false;
+    if (m.spectrum) wf.push(m.spectrum, FREQ_MHZ);
     if (m.type === 'error') {
       setStatus('Decoder error: ' + m.message, 'err');
       return;
@@ -81,6 +85,7 @@ function startWorker() {
     for (const p of m.packets) {
       lastPacketAt = now;
       lastChannel = p.channelMhz;
+      wf.mark(Math.round(p.channelMhz * 1000));
     }
     for (const p of rc) {
       rcTimes.push(now);
@@ -150,6 +155,7 @@ async function connect() {
   snaps.length = 0;
   rcTimes.length = 0;
   lastPacketAt = null;
+  wf = new WaterfallModel(120);
   startWorker();
   running = true;
   el.connect.textContent = 'Disconnect';
@@ -199,6 +205,7 @@ function render() {
     b.fill.style.width = v === null ? '0' : `${Math.max(0, Math.min(100, ((v - 172) / (1811 - 172)) * 100))}%`;
     b.num.textContent = v === null ? '-' : String(v);
   });
+  drawWaterfall(el.wf, wf, el.wfaxis);
   requestAnimationFrame(render);
 }
 
