@@ -1054,6 +1054,7 @@ export class LevelScale {                  // floor: first update = 25th pct (so
 export class WaterfallModel {
   constructor(rows = 120)
   push(bins, loMhz)                        // newest row first; LO change clears history first; > rows drops oldest; LevelScale.update
+                                           // row indexed against the pre-update floor (first row seeds it), so a step up renders at full brightness
   mark(freqKhz)                            // marks binColumn(freqKhz, lo) on the newest row; ignored if null or no rows
   get loMhz()                              // null before the first push
   get dirty()                              // true after push/mark, false after pixels()
