@@ -1,0 +1,24 @@
+{
+  "name": "ESP-SDR ELRS receiver",
+  "version": "cddfcb3",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "firmware/esp32-elrs/0-bootloader.bin",
+          "offset": 4096
+        },
+        {
+          "path": "firmware/esp32-elrs/1-partition-table.bin",
+          "offset": 32768
+        },
+        {
+          "path": "firmware/esp32-elrs/2-esp_sdr.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}
