@@ -2,6 +2,7 @@ import { SdrLink, supported } from '../elrs/serial.js';
 import { uidFromPhrase, toHex } from '../elrs/dk500.js';
 import { ElrsLink, firmwareKind } from './link.js';
 import { RxState } from './state.js';
+import { WaterfallModel, drawWaterfall } from '../elrs/waterfall.js';
 
 const STORE_KEY = 'elrs-rx-phrase';
 const HINTS = {
@@ -17,9 +18,12 @@ const el = {
   led: $('led'), stats: $('stats'), badge: $('badge'), uidset: $('uidset'), hint: $('hint'),
   unsupported: $('unsupported'), message: $('message'),
   padL: $('padL'), padR: $('padR'), valsL: $('valsL'), valsR: $('valsR'), auxrows: $('auxrows'),
+  wf: $('wf'), wfaxis: $('wfaxis'), wfnote: $('wfnote'),
 };
 
+const WF_NOTE = el.wfnote.textContent;
 const state = new RxState();
+let wf = new WaterfallModel(120);
 let sdr = null;
 let link = null;
 let connected = false;
@@ -65,6 +69,8 @@ function pushUid() {
 
 async function startRx() {
   await cmd('MODE AUTO');
+  const spec = await link.command('SPECTRUM ON');
+  el.wfnote.textContent = spec.startsWith('ERR') ? 'Waterfall needs newer ELRS receiver firmware' : WF_NOTE;
   await cmd('RX ON');
   rxOn = true;
 }
@@ -134,6 +140,7 @@ async function connect() {
       throw new Error(kind === 'stock' ? 'stock firmware' : 'unknown firmware');
     }
     state.reset();
+    wf = new WaterfallModel(120);
     applyPhrase();
     rxOn = false;
     if (uid) {
@@ -149,7 +156,14 @@ async function connect() {
     el.connect.disabled = false;
     return;
   }
-  mine.onStream((l) => state.onLine(l));
+  mine.onStream((l) => {
+    if (l.kind === 'F') {
+      wf.push(l.bins, l.loMhz);
+      return;
+    }
+    state.onLine(l);
+    if (l.kind === 'P') wf.mark(2400400 + 1000 * l.ch);
+  });
   connected = true;
   setStatus('Connected', 'on');
   el.connect.textContent = 'Disconnect';
@@ -222,6 +236,7 @@ function render() {
     b.fill.style.width = v === null ? '0' : `${Math.max(0, Math.min(100, ((v - 172) / (1811 - 172)) * 100))}%`;
     b.num.textContent = v === null ? '-' : String(v);
   });
+  drawWaterfall(el.wf, wf, el.wfaxis);
   requestAnimationFrame(render);
 }
 

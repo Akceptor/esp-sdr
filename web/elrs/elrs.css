@@ -41,7 +41,17 @@
 .fill { height: 100%; width: 0; background: var(--accent); }
 .auxrow.unseen .fill { background: var(--line); }
 .auxrow .num { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.grid.wf3 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); }
+.wf { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.wf h2 { margin: 0 0 8px; font-size: 1rem; }
+.wf canvas { display: block; width: 100%; height: 240px; image-rendering: pixelated; background: #000; }
+.wfaxis { position: relative; height: 1.2em; font-size: .75rem; color: var(--muted); }
+.wfaxis span { position: absolute; transform: translateX(-50%); }
 .note { font-size: 0.85rem; color: var(--muted); margin-top: 16px; }
+@media (max-width: 960px) {
+  .grid.wf3 { grid-template-columns: 1fr 1fr; }
+  .grid.wf3 .gimbals { grid-column: 1 / -1; }
+}
 @media (max-width: 640px) {
   .grid { grid-template-columns: 1fr; }
 }

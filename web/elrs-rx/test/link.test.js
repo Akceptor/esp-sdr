@@ -133,3 +133,13 @@ test('reply rejected while the write is in flight is not an unhandled rejection'
     process.off('unhandledRejection', onUnhandled);
   }
 });
+
+test('F lines are streamed, not taken as the reply', async () => {
+  const f = 'F 5000 2438 ' + '00'.repeat(64);
+  const sdr = fake([f, 'P 1 2 R - 3 4.0 0 f801020304050695', 'OK']);
+  const link = new ElrsLink(sdr);
+  const seen = [];
+  link.onStream((l) => seen.push(l.kind));
+  assert.equal(await link.command('SPECTRUM ON'), 'OK');
+  assert.deepEqual(seen, ['F', 'P']);
+});

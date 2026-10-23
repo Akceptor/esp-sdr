@@ -69,3 +69,21 @@ test('SYNC P line carries comma data', () => {
   assert.equal(parseLine('P 1 2 S 5 -3 4.0 0 zz'), null);
   assert.equal(parseLine('P 1 2 R 5 -3 4.0 0 160,77,14,1,1,5'), null);
 });
+
+test('parseLine F', () => {
+  const hex = Array.from({ length: 64 }, (_, j) => (j * 4).toString(16).padStart(2, '0')).join('');
+  const l = parseLine('F 5000 2438 ' + hex);
+  assert.equal(l.kind, 'F');
+  assert.equal(l.tUs, 5000);
+  assert.equal(l.loMhz, 2438);
+  assert.ok(l.bins instanceof Uint8Array);
+  for (let j = 0; j < 64; j++) assert.equal(l.bins[j], j * 4);
+  const bad = [
+    'F 5000 2438 ' + hex.slice(0, 126),
+    'F 5000 2438',
+    'F x 2438 ' + hex,
+    'F 5000 2401 ' + hex,
+    'F 5000 2438 ' + hex.slice(0, 127) + 'g',
+  ];
+  for (const b of bad) assert.equal(parseLine(b), null, b);
+});

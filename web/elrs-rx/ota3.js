@@ -29,6 +29,13 @@ function parseS(tok) {
   return STATS_KEYS.every((k) => k in stats) ? { kind: 'S', stats } : null;
 }
 
+function parseF(tok) {
+  if (tok.length !== 4) return null;
+  const [, t, lo, data] = tok;
+  if (!INT.test(t) || !INT.test(lo) || +lo < 2402 || +lo > 2478 || !/^[0-9a-f]{128}$/i.test(data)) return null;
+  return { kind: 'F', tUs: +t, loMhz: +lo, bins: Uint8Array.from(data.match(/../g), (h) => parseInt(h, 16)) };
+}
+
 export function parseLine(line) {
   const s = String(line).trim();
   if (!s) return null;
@@ -37,6 +44,7 @@ export function parseLine(line) {
   switch (tok[0]) {
     case 'P': return parseP(tok);
     case 'S': return parseS(tok);
+    case 'F': return parseF(tok);
     case 'L': return tok.length >= 2 ? { kind: 'L', state: tok[1], reason: tok.slice(2).join(' ') } : null;
     case 'W': return tok.length >= 2 ? { kind: 'W', text: tok.slice(1).join(' ') } : null;
     default: return { kind: 'reply', text: s };
