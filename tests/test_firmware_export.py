@@ -66,6 +66,19 @@ class FirmwareExport(unittest.TestCase):
         self.assertEqual(variant['build_timestamp'], record['build_timestamp'])
         self.assertEqual(variant['build_date'], record['build_date'])
 
+    def test_hyphenated_profile_record(self):
+        revision = 'b' * 40
+        record = dict(revision=revision, build_date='2026-10-23',
+                      build_timestamp='2026-10-23T00:00:00Z', profile='esp32-elrs')
+        (self.build / 'config/sdkconfig.json').write_text(json.dumps({'IDF_TARGET': 'esp32'}))
+        self.args['extra_esptool_args']['chip'] = 'esp32'
+        self.save_args()
+        (self.build / 'app.bin').write_bytes(b'ESP-SDR-VERSION:' + json.dumps(record).encode() + b'\0')
+        path = exporter.export(self.build, self.root / 'output', 'esp32-elrs', 'ESP32 ELRS', 'test', True)
+        self.assertEqual(json.loads(path.read_text())['variants']['esp32-elrs']['git_revision'], revision)
+        with self.assertRaises(ValueError):
+            exporter.firmware_version(b'ESP-SDR-VERSION:' + json.dumps(dict(record, profile='esp32s3-')).encode() + b'\0')
+
     def test_embedded_profile_mismatch_rejected(self):
         record = dict(revision='a'*40, build_date='2026-10-06',
                       build_timestamp='2026-10-06T22:12:34Z', profile='esp32c61')

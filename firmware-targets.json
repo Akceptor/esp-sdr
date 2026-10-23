@@ -90,6 +90,16 @@
       "preview": true,
       "streaming": true,
       "sdkconfig": "sdkconfig.defaults.esp32s31-stream"
+    },
+    {
+      "id": "esp32-elrs",
+      "target": "esp32",
+      "label": "ESP32 \u00b7 ELRS DK500 stick receiver (UART)",
+      "idf_ref": "25fe69f946311abdaf9ad56591f25fedbc20ac98",
+      "allow_larger_flash": true,
+      "preview": true,
+      "variant": "elrs",
+      "sdkconfig": "sdkconfig.defaults.esp32-elrs"
     }
   ],
   "unavailable": {}

@@ -1,0 +1,33 @@
+import importlib.util
+import json
+from pathlib import Path
+import sys
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+SPEC = importlib.util.spec_from_file_location('builder', ROOT / 'tools/build_firmware.py')
+builder = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(builder)
+
+profiles = {x['id']: x for x in json.loads((ROOT / 'firmware-targets.json').read_text())['profiles']}
+
+
+class ElrsVariant(unittest.TestCase):
+    def test_catalog_profile(self):
+        self.assertEqual(profiles['esp32-elrs'], {
+            "id": "esp32-elrs", "target": "esp32", "label": "ESP32 · ELRS DK500 stick receiver (UART)",
+            "idf_ref": "25fe69f946311abdaf9ad56591f25fedbc20ac98", "allow_larger_flash": True, "preview": True,
+            "variant": "elrs", "sdkconfig": "sdkconfig.defaults.esp32-elrs"})
+
+    def test_build_command_flags(self):
+        elrs = builder.build_command(profiles['esp32-elrs'], Path('/b'), '/sdk')
+        stock = builder.build_command(profiles['esp32'], Path('/b'), '/sdk')
+        self.assertIn('-DESP_SDR_ELRS=ON', elrs)
+        self.assertIn('-DESP_SDR_ELRS=OFF', stock)
+        self.assertIn('-DSDKCONFIG_DEFAULTS=' + str(ROOT / 'sdkconfig.defaults.esp32-elrs'), elrs)
+        self.assertIn('-DIDF_TARGET=esp32', elrs)
+
+
+if __name__ == '__main__':
+    unittest.main()
