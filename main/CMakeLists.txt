@@ -1,10 +1,10 @@
 idf_build_get_property(elrs ESP_SDR_ELRS)
 if(elrs)
-    idf_component_register(SRCS "elrs/cmd.c" "elrs/dsp.c" "elrs/fhss.c" "elrs/frames.c" "elrs/ota3.c" "targets/esp32/elrs/app.c" "targets/esp32/elrs/radio.c"
+    idf_component_register(SRCS "elrs/cmd.c" "elrs/dsp.c" "elrs/fhss.c" "elrs/frames.c" "elrs/ota3.c" "targets/esp32/elrs/app.c" "targets/esp32/elrs/out.c" "targets/esp32/elrs/radio.c"
         "common/burst_serial.c" "common/burst_gpio.c" "common/burst_version.c"
         "common/rx_recalibration.c" "common/rx_calibration_state.c"
         PRIV_INCLUDE_DIRS "elrs" "common" "targets/esp32" "targets/esp32/elrs"
-        REQUIRES esp_driver_gpio esp_hw_support esp_phy esp_wifi nvs_flash esp_timer esp_driver_uart)
+        REQUIRES esp_driver_gpio esp_hw_support esp_phy esp_wifi nvs_flash esp_timer esp_driver_uart esp_ringbuf)
     idf_build_get_property(version_python PYTHON)
     set(version_header "${CMAKE_CURRENT_BINARY_DIR}/generated/build_version.h")
     add_custom_target(esp_sdr_build_version

@@ -49,6 +49,7 @@ int main(void) {
     INVALID("RX ON x", "args");
     INVALID("RX", "args");
     P("STATS");                assert(c.kind == ELRS_CMD_STATS);
+    P("STATS?");               assert(c.kind == ELRS_CMD_STATS);
     P("BENCH 1");              assert(c.kind == ELRS_CMD_BENCH && c.u.bench_n == 1);
     P("BENCH 2000");           assert(c.kind == ELRS_CMD_BENCH && c.u.bench_n == 2000);
     INVALID("BENCH 0", "args");

@@ -79,7 +79,7 @@ void elrs_cmd_parse(const char *line, elrs_cmd_t *out) {
     if (is(v, "INFO")) NOARGS(ELRS_CMD_INFO);
     if (is(v, "CAPS")) NOARGS(ELRS_CMD_CAPS);
     if (is(v, "TRANSPORT?")) NOARGS(ELRS_CMD_TRANSPORT);
-    if (is(v, "STATS")) NOARGS(ELRS_CMD_STATS);
+    if (is(v, "STATS") || is(v, "STATS?")) NOARGS(ELRS_CMD_STATS);
     if (is(v, "UID?")) NOARGS(ELRS_CMD_UID_QUERY);
     if (is(v, "MODE?")) NOARGS(ELRS_CMD_MODE_QUERY);
     if (is(v, "PARK?")) NOARGS(ELRS_CMD_PARK_QUERY);
