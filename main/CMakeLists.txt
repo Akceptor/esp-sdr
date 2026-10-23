@@ -1,3 +1,28 @@
+idf_build_get_property(elrs ESP_SDR_ELRS)
+if(elrs)
+    idf_component_register(SRCS "elrs/cmd.c" "targets/esp32/elrs/app.c"
+        "common/burst_serial.c" "common/burst_gpio.c" "common/burst_version.c"
+        "common/rx_recalibration.c" "common/rx_calibration_state.c"
+        PRIV_INCLUDE_DIRS "elrs" "common" "targets/esp32" "targets/esp32/elrs"
+        REQUIRES esp_driver_gpio esp_hw_support esp_phy esp_wifi nvs_flash esp_timer esp_driver_uart)
+    idf_build_get_property(version_python PYTHON)
+    set(version_header "${CMAKE_CURRENT_BINARY_DIR}/generated/build_version.h")
+    add_custom_target(esp_sdr_build_version
+        COMMAND "${version_python}" "${PROJECT_DIR}/tools/generate_version.py"
+            --root "${PROJECT_DIR}" --profile "esp32-elrs" --output "${version_header}"
+        BYPRODUCTS "${version_header}"
+        VERBATIM)
+    add_dependencies(${COMPONENT_LIB} esp_sdr_build_version)
+    target_include_directories(${COMPONENT_LIB} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_options(${COMPONENT_LIB} INTERFACE
+        "-T${CMAKE_CURRENT_LIST_DIR}/targets/esp32/sram_guard.ld"
+        "-Wl,--wrap=chip_v7_set_chan_ana")
+    # libphy calls the wrapper; force the archive member in until app code references rx_recalibration.
+    target_link_options(${COMPONENT_LIB} INTERFACE "-Wl,-u,__wrap_chip_v7_set_chan_ana")
+    include("common/rx_calibration_link.cmake")
+    return()
+endif()
+
 idf_build_get_property(streaming ESP_SDR_STREAMING)
 if(streaming)
     idf_component_register(REQUIRES streaming)

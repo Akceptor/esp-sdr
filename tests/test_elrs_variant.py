@@ -28,6 +28,17 @@ class ElrsVariant(unittest.TestCase):
         self.assertIn('-DSDKCONFIG_DEFAULTS=' + str(ROOT / 'sdkconfig.defaults.esp32-elrs'), elrs)
         self.assertIn('-DIDF_TARGET=esp32', elrs)
 
+    def test_cmake_branch_is_early_and_returns(self):
+        text = (ROOT / 'main/CMakeLists.txt').read_text()
+        lines = [x for x in text.splitlines() if x.strip() and not x.strip().startswith('#')]
+        self.assertEqual(lines[0], 'idf_build_get_property(elrs ESP_SDR_ELRS)')
+        end = text.index('set(esp_sdr_supported_targets')
+        block = text[:end]
+        for needle in ('generate_version.py', '--profile', 'esp32-elrs', 'sram_guard.ld',
+                       '--wrap=chip_v7_set_chan_ana', 'rx_calibration_link.cmake'):
+            self.assertIn(needle, block)
+        self.assertIn('return()', block)
+
 
 if __name__ == '__main__':
     unittest.main()
