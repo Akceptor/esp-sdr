@@ -130,6 +130,10 @@ async function connect() {
   try {
     setStatus('Synchronizing', 'warn');
     await link.synchronize();
+    const info = await link.command('INFO');
+    if (info.startsWith('ESP32ELRS')) {
+      throw new Error('This board runs the ELRS receiver firmware; use the ELRS receiver page (../elrs-rx/)');
+    }
     const bad = [];
     for (const cmd of [`FREQ ${FREQ_MHZ}`, 'GAIN HARDWARE']) {
       const reply = await link.command(cmd);

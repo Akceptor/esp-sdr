@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ESP-SDR Tools</title>
-<meta name="description" content="Browser tools for the ESP-SDR firmware: ELRS stick viewer and web flasher.">
+<meta name="description" content="Browser tools for the ESP-SDR firmware: ELRS stick viewer, ELRS receiver and web flasher.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="site"><a href="./">ESP-SDR Tools</a><a href="elrs/">ELRS viewer</a><a href="flash/">Flasher</a></header>
+<header class="site"><a href="./">ESP-SDR Tools</a><a href="elrs/">ELRS viewer</a><a href="elrs-rx/">ELRS receiver</a><a href="flash/">Flasher</a></header>
 <main>
 <h1>ESP-SDR in the browser</h1>
 <p>
@@ -18,14 +18,21 @@
 </p>
 <div class="cards">
   <div class="card">
-    <h2 style="margin-top:0">ELRS stick viewer</h2>
-    <p>Connect an ESP32 running ESP-SDR over Web Serial, enter your ExpressLRS binding phrase, and watch the
-    transmitter sticks and AUX channels live. Decodes ELRS DK500 (LR1121, 2.4 GHz GFSK) packets in JavaScript.</p>
+    <h2 style="margin-top:0">ELRS stick viewer (raw I/Q)</h2>
+    <p>Needs <strong>stock ESP-SDR</strong> firmware. Connect over Web Serial, enter your ExpressLRS binding phrase,
+    and watch the transmitter sticks and AUX channels live. Decodes ELRS DK500 (LR1121, 2.4 GHz GFSK) packets in JavaScript.</p>
     <a class="btn primary" href="elrs/">Open viewer</a>
   </div>
   <div class="card">
-    <h2 style="margin-top:0">Web flasher</h2>
-    <p>Flash the official ESP-SDR firmware to an ESP32 (WROOM-32 / WROOM-32U) from Chrome or Edge, no tools to install.</p>
+    <h2 style="margin-top:0">ELRS receiver (on-chip decode, fast)</h2>
+    <p>Needs <strong>ELRS receiver</strong> firmware. The board decodes ELRS packets itself and sends only the
+    channel data, so the page updates much faster than the raw I/Q viewer.</p>
+    <a class="btn primary" href="elrs-rx/">Open receiver</a>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Flasher</h2>
+    <p>Flash the official ESP-SDR firmware to an ESP32 (WROOM-32 / WROOM-32U) from Chrome or Edge, no tools to install.
+    The ELRS receiver firmware (profile <code>esp32-elrs</code>) is built with <code>tools/build_firmware.py</code>.</p>
     <a class="btn primary" href="flash/">Open flasher</a>
   </div>
 </div>

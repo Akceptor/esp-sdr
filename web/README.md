@@ -3,9 +3,12 @@
 Static site deployed to GitHub Pages from `web/` (see `.github/workflows/pages.yml`).
 
 - `index.html` landing page
-- `elrs/` ELRS stick viewer: Web Serial to an ESP-SDR board, DK500 packets decoded in JavaScript
+- `elrs/` ELRS stick viewer: Web Serial to an ESP-SDR board, DK500 packets decoded in JavaScript.
+  Needs the stock ESP-SDR firmware
   (`dk500.js` protocol, `demod.js` DSP, `worker.js` decode thread, `serial.js` link, `app.js` UI)
-- `flash/` ESP Web Tools flasher with the official firmware build of commit `f86da81`
+- `elrs-rx/` ELRS receiver page: Web Serial to a board running the `esp32-elrs` firmware, which decodes ELRS
+  packets on-chip and streams channel data. Needs the ELRS receiver firmware
+- `flash/` ESP Web Tools flasher with the official firmware build of commit `f86da81` (stock only; the page flashes the stock firmware)
 
 Run locally (Web Serial works on `localhost`):
 
@@ -13,7 +16,7 @@ Run locally (Web Serial works on `localhost`):
 
 Tests (Node 20+; `node --test web/elrs/test/` also works):
 
-    node --test web/elrs/test/*.test.js
+    node --test web/elrs/test/*.test.js web/elrs-rx/test/*.test.js
 
 `web/elrs/test/real_dk500.bin` is a real capture (6 snapshots, int8 I/Q, 16 MS/s, centre 2436 MHz) converted by
 `convert_fixture.py` from `tools/elrs/testdata/real_dk500.npz` on branch `elrs-spike`.
