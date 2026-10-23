@@ -27,7 +27,7 @@ export class RxState {
     this.hybrid = new Hybrid8State();
   }
 
-  // Counters restart on the device when the UID changes.
+  // Device counters are cumulative and restart when the UID changes.
   resetCounters() {
     this.sHistory = [];
     this.lastS = null;
@@ -39,6 +39,8 @@ export class RxState {
       this.#onP(line, now);
     } else if (line.kind === 'S') {
       this.lastS = line.stats;
+      const prev = this.sHistory[this.sHistory.length - 1];
+      if (prev && (line.stats.bursts < prev.bursts || line.stats.ok < prev.ok)) this.sHistory = [];
       this.sHistory.push(line.stats);
       if (this.sHistory.length > S_HISTORY) this.sHistory.shift();
     } else if (line.kind === 'L') {
@@ -99,8 +101,9 @@ export class RxState {
   get hint() {
     if (this.wide) return 'wide_mode';
     if (this.sHistory.length >= S_HISTORY) {
-      const bursts = this.sHistory.reduce((a, s) => a + s.bursts, 0);
-      const ok = this.sHistory.reduce((a, s) => a + s.ok, 0);
+      const first = this.sHistory[0], last = this.sHistory[S_HISTORY - 1];
+      const bursts = last.bursts - first.bursts;
+      const ok = last.ok - first.ok;
       if (bursts >= 20 && ok === 0) return 'wrong_phrase';
       if (bursts === 0) return 'no_signal';
     }

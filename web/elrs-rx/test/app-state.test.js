@@ -120,3 +120,29 @@ test('t_us wrap does not produce a negative age', () => {
   assert.equal(st.lastPacketAgeMs, 5);
   assert.ok(st.lastPacketAgeMs >= 0);
 });
+
+test('no_signal fires after activity once cumulative bursts go flat', () => {
+  const { st } = make();
+  for (let i = 1; i <= 5; i++) st.onLine(s({ bursts: 100 * i, ok: 50 * i }));
+  assert.equal(st.hint, null);
+  for (let i = 0; i < 3; i++) st.onLine(s({ bursts: 500, ok: 250 }));
+  assert.equal(st.hint, null);
+  st.onLine(s({ bursts: 500, ok: 250 }));
+  assert.equal(st.hint, 'no_signal');
+});
+
+test('wrong_phrase uses cumulative deltas, not totals', () => {
+  const { st } = make();
+  for (let i = 0; i < 5; i++) st.onLine(s({ bursts: 1000 + 10 * i, ok: 40 }));
+  assert.equal(st.hint, 'wrong_phrase');
+});
+
+test('a counter decrease restarts the window', () => {
+  const { st } = make();
+  for (let i = 0; i < 5; i++) st.onLine(s({ bursts: 1000, ok: 40 }));
+  assert.equal(st.hint, 'no_signal');
+  st.onLine(s({ bursts: 5, ok: 0 }));
+  assert.equal(st.hint, null);
+  for (let i = 1; i <= 4; i++) st.onLine(s({ bursts: 5 + 10 * i, ok: 0 }));
+  assert.equal(st.hint, 'wrong_phrase');
+});

@@ -73,16 +73,20 @@ function applyPhrase() {
   const phrase = el.phrase.value;
   uid = phrase ? uidFromPhrase(phrase) : null;
   state.uid = uid;
-  state.resetCounters();
   el.uidset.hidden = !uid;
   if (el.remember.checked) storageSet(phrase || null);
 }
 
 async function onSet() {
+  if (connected && !el.phrase.value) {
+    setStatus('enter a binding phrase', 'warn');
+    return;
+  }
   applyPhrase();
   if (!connected || !uid) return;
   try {
     await pushUid();
+    state.resetCounters();
     if (el.store.checked) await cmd('UID SAVE');
     if (!rxOn) await startRx();
   } catch (e) {
@@ -97,6 +101,7 @@ async function onStoreChange() {
     rxOn = false;
     if (uid) {
       await pushUid();
+      state.resetCounters();
       await startRx();
     }
   } catch (e) {
