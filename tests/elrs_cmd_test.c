@@ -27,6 +27,9 @@ int main(void) {
     INVALID("PARK 2401", "args");
     INVALID("PARK 2479", "args");
     INVALID("PARK 2438 x", "args");
+    INVALID("PARK 99999999999999999999999", "args");
+    INVALID("RETUNE 2402 2478 10 FAST x y", "args");
+    INVALID("FOO 1 2 3 4 5 6 7", "command");
     P("PARK?");                assert(c.kind == ELRS_CMD_PARK_QUERY);
     P("MODE HOP");             assert(c.kind == ELRS_CMD_MODE && c.u.mode == ELRS_MODE_HOP);
     P("MODE AUTO");            assert(c.u.mode == ELRS_MODE_AUTO);

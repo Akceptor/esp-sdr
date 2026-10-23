@@ -68,7 +68,7 @@ void elrs_cmd_parse(const char *line, elrs_cmd_t *out) {
         if (count == MAX_TOKENS) { overflow = true; break; }
         t[count++] = (token_t){start, (size_t)(s - start)};
     }
-    if (!count) return fail(out, "command");
+    if (!count) { fail(out, "command"); return; }
 
     token_t v = t[0];
     size_t argc = count - 1;
@@ -86,90 +86,93 @@ void elrs_cmd_parse(const char *line, elrs_cmd_t *out) {
     if (is(v, "GAIN?")) NOARGS(ELRS_CMD_GAIN_QUERY);
 #undef NOARGS
 
-    if (overflow) return fail(out, is(v, "UID") || is(v, "SYNC") || is(v, "PARK") || is(v, "MODE") ||
-                                   is(v, "GAIN") || is(v, "RX") || is(v, "BENCH") || is(v, "RETUNE") ||
-                                   is(v, "LEAD") || is(v, "SNAP16") || is(v, "POLARITY")
-                                   ? "args" : "command");
+    if (overflow) {
+        fail(out, is(v, "UID") || is(v, "SYNC") || is(v, "PARK") || is(v, "MODE") ||
+                          is(v, "GAIN") || is(v, "RX") || is(v, "BENCH") || is(v, "RETUNE") ||
+                          is(v, "LEAD") || is(v, "SNAP16") || is(v, "POLARITY")
+                      ? "args" : "command");
+        return;
+    }
 
     if (is(v, "SYNC")) {
-        if (argc != 1 || !number(t[1], UINT64_MAX, &big)) return fail(out, "args");
+        if (argc != 1 || !number(t[1], UINT64_MAX, &big)) { fail(out, "args"); return; }
         out->u.nonce = big;
-        return done(out, ELRS_CMD_SYNC);
+        { done(out, ELRS_CMD_SYNC); return; }
     }
     if (is(v, "UID")) {
-        if (!argc) return fail(out, "uid");
-        if (is(t[1], "SAVE")) return argc == 1 ? done(out, ELRS_CMD_UID_SAVE) : fail(out, "args");
-        if (is(t[1], "CLEAR")) return argc == 1 ? done(out, ELRS_CMD_UID_CLEAR) : fail(out, "args");
+        if (!argc) { fail(out, "uid"); return; }
+        if (is(t[1], "SAVE")) { if (argc == 1) done(out, ELRS_CMD_UID_SAVE); else fail(out, "args"); return; }
+        if (is(t[1], "CLEAR")) { if (argc == 1) done(out, ELRS_CMD_UID_CLEAR); else fail(out, "args"); return; }
         if (!uid_token(t[1], out->u.uid)) {
             memset(out->u.uid, 0, sizeof(out->u.uid));
-            return fail(out, "uid");
+            { fail(out, "uid"); return; }
         }
         if (argc != 1) {
             memset(out->u.uid, 0, sizeof(out->u.uid));
-            return fail(out, "args");
+            { fail(out, "args"); return; }
         }
-        return done(out, ELRS_CMD_UID_SET);
+        { done(out, ELRS_CMD_UID_SET); return; }
     }
     if (is(v, "PARK")) {
-        if (argc != 1 || !ranged(t[1], 2402, 2478, &n)) return fail(out, "args");
+        if (argc != 1 || !ranged(t[1], 2402, 2478, &n)) { fail(out, "args"); return; }
         out->u.park_mhz = n;
-        return done(out, ELRS_CMD_PARK);
+        { done(out, ELRS_CMD_PARK); return; }
     }
     if (is(v, "MODE")) {
-        if (argc != 1) return fail(out, "args");
+        if (argc != 1) { fail(out, "args"); return; }
         elrs_mode_t m;
         if (is(t[1], "AUTO")) m = ELRS_MODE_AUTO;
         else if (is(t[1], "SCAN")) m = ELRS_MODE_SCAN;
         else if (is(t[1], "TIMED")) m = ELRS_MODE_TIMED;
         else if (is(t[1], "HOP")) m = ELRS_MODE_HOP;
-        else return fail(out, "args");
+        else { fail(out, "args"); return; }
         out->u.mode = m;
-        return done(out, ELRS_CMD_MODE);
+        { done(out, ELRS_CMD_MODE); return; }
     }
     if (is(v, "GAIN")) {
-        if (argc == 1 && is(t[1], "HARDWARE")) return done(out, ELRS_CMD_GAIN_HARDWARE);
+        if (argc == 1 && is(t[1], "HARDWARE")) { done(out, ELRS_CMD_GAIN_HARDWARE); return; }
         if (argc == 2 && is(t[1], "MANUAL") && ranged(t[2], 0, 127, &n)) {
             out->u.gain = n;
-            return done(out, ELRS_CMD_GAIN_MANUAL);
+            { done(out, ELRS_CMD_GAIN_MANUAL); return; }
         }
-        return fail(out, "args");
+        { fail(out, "args"); return; }
     }
     if (is(v, "RX")) {
-        if (argc == 1 && is(t[1], "ON")) return done(out, ELRS_CMD_RX_ON);
-        if (argc == 1 && is(t[1], "OFF")) return done(out, ELRS_CMD_RX_OFF);
-        return fail(out, "args");
+        if (argc == 1 && is(t[1], "ON")) { done(out, ELRS_CMD_RX_ON); return; }
+        if (argc == 1 && is(t[1], "OFF")) { done(out, ELRS_CMD_RX_OFF); return; }
+        { fail(out, "args"); return; }
     }
     if (is(v, "BENCH")) {
-        if (argc != 1 || !ranged(t[1], 1, 2000, &n)) return fail(out, "args");
+        if (argc != 1 || !ranged(t[1], 1, 2000, &n)) { fail(out, "args"); return; }
         out->u.bench_n = n;
-        return done(out, ELRS_CMD_BENCH);
+        { done(out, ELRS_CMD_BENCH); return; }
     }
     if (is(v, "RETUNE")) {
         unsigned a, b, count_n;
         if (argc != 4 || !ranged(t[1], 2402, 2478, &a) || !ranged(t[2], 2402, 2478, &b) ||
             !ranged(t[3], 1, 10000, &count_n) || (!is(t[4], "FULL") && !is(t[4], "FAST")))
-            return fail(out, "args");
+            { fail(out, "args"); return; }
         out->u.retune.mhz_a = a;
         out->u.retune.mhz_b = b;
         out->u.retune.n = count_n;
         out->u.retune.fast = is(t[4], "FAST");
-        return done(out, ELRS_CMD_RETUNE);
+        { done(out, ELRS_CMD_RETUNE); return; }
     }
     if (is(v, "LEAD")) {
-        if (argc != 1 || !ranged(t[1], 0, 5000, &n)) return fail(out, "args");
+        if (argc != 1 || !ranged(t[1], 0, 5000, &n)) { fail(out, "args"); return; }
         out->u.lead_us = n;
-        return done(out, ELRS_CMD_LEAD);
+        { done(out, ELRS_CMD_LEAD); return; }
     }
     if (is(v, "SNAP16")) {
-        if (argc != 1 || !ranged(t[1], 256, 16380, &n)) return fail(out, "args");
+        if (argc != 1 || !ranged(t[1], 256, 16380, &n)) { fail(out, "args"); return; }
         out->u.snap_samples = n;
-        return done(out, ELRS_CMD_SNAP16);
+        { done(out, ELRS_CMD_SNAP16); return; }
     }
     if (is(v, "POLARITY")) {
         if (argc == 1 && is(t[1], "INV")) out->u.polarity = ELRS_POL_INV;
         else if (argc == 1 && is(t[1], "AUTO")) out->u.polarity = ELRS_POL_AUTO;
-        else return fail(out, "args");
-        return done(out, ELRS_CMD_POLARITY);
+        else { fail(out, "args"); return; }
+        { done(out, ELRS_CMD_POLARITY); return; }
     }
     fail(out, "command");
 }
