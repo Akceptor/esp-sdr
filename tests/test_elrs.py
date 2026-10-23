@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -33,6 +34,13 @@ class ElrsHost(unittest.TestCase):
 
     def test_dsp(self):
         self.run_c('dsp', ['dsp', 'ota3', 'fhss'], [str(ROOT / 'web/elrs/test/real_dk500.bin')])
+
+    def test_decode(self):
+        self.run_c('decode', ['dsp', 'ota3', 'fhss'], [str(ROOT / 'web/elrs/test/real_dk500.bin')])
+
+    @unittest.skipUnless(os.environ.get('ELRS_SLOW', '1') != '0', 'slow test disabled')
+    def test_decode_noise(self):
+        self.run_c('decode', ['dsp', 'ota3', 'fhss'], ['--noise', '10000'])
 
 
 if __name__ == '__main__':

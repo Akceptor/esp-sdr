@@ -1,8 +1,11 @@
 #ifndef ELRS_DSP_H
 #define ELRS_DSP_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "cmd.h"
 
 #define ELRS_FS_HZ 16000000
 #define ELRS_MAX_SAMPLES 16380
@@ -45,5 +48,33 @@ typedef struct {
 /* Returns the number of bursts written to out, ordered by channel. st may be NULL. */
 size_t elrs_detect(const elrs_iq16_t *x, size_t n, unsigned lo_mhz, elrs_burst_t *out, size_t max,
                    elrs_detect_stats_t *st);
+
+typedef struct {
+    unsigned lo_mhz;
+    uint8_t uid[6];
+    elrs_polarity_t polarity;
+} elrs_decode_cfg_t;
+
+typedef struct {
+    uint8_t pkt[8];
+    uint8_t channel;
+    int8_t crc_slot; /* 0 Hybrid/non-RC, 1|2 Wide RC */
+    uint32_t sync_end_sample; /* 16 MS/s index of the last sync bit's end */
+    float cfo_hz, snr_db;
+    uint8_t fec, sync_errors, missing_bits;
+    bool inverted;
+} elrs_packet_t;
+
+typedef struct {
+    unsigned bursts, overlap_dropped, sync_found, fec_reject, crc_fail, wide;
+} elrs_decode_stats_t;
+
+typedef struct elrs_dsp_work elrs_dsp_work_t;
+
+size_t elrs_dsp_work_size(void);
+
+/* work: elrs_dsp_work_size() bytes, suitably aligned (static storage). Not reentrant. */
+size_t elrs_decode_snapshot(const elrs_iq16_t *x, size_t n, const elrs_decode_cfg_t *cfg, elrs_dsp_work_t *work,
+                            elrs_packet_t *out, size_t max_out, elrs_decode_stats_t *st);
 
 #endif
