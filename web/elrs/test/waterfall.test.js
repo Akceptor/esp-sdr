@@ -112,3 +112,11 @@ test('WaterfallModel rows, marks and history', () => {
   assert.deepEqual(px(p, 0, 1), [0, 0, 0, 255]);
   assert.notDeepEqual(px(p, 0, 0), [0, 0, 0, 255]);
 });
+
+test('a new WaterfallModel is dirty so the first draw clears a stale canvas', () => {
+  const m = new WaterfallModel(2);
+  assert.equal(m.dirty, true);
+  const p = m.pixels();
+  assert.deepEqual(px(p, 0, 0), [0, 0, 0, 255]);
+  assert.equal(m.dirty, false);
+});

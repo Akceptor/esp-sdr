@@ -84,7 +84,7 @@ export class LevelScale {
 export class WaterfallModel {
   #rows = [];
   #lo = null;
-  #dirty = false;
+  #dirty = true;
   #scale = new LevelScale();
 
   constructor(rows = 120) {
